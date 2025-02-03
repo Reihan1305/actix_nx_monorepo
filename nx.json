@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
+    "production": [
+      "default"
+    ],
+    "sharedGlobals": [
+      "{workspaceRoot}/.gitlab-ci.yml"
+    ]
+  },
+  "nxCloudId": "67a0b8d23135fd1d9a1d8d19",
+  "plugins": [
+    "@monodon/rust"
+  ]
+}
