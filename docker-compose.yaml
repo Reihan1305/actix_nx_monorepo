@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${DB_ROOT_USERNAME}
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgresDB:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+    networks:
+      - localprom
+    restart: always
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "admin"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 10s
+
+networks:
+  localprom:
+    driver: bridge
+
+volumes:
+  postgresDB:
