@@ -9,3 +9,15 @@ version = "0.1.0"
 [[package]]
 name = "post_services"
 version = "0.1.0"
+
+[[package]]
+name = "rabbitmq_libs"
+version = "0.1.0"
+
+[[package]]
+name = "rabbitmq_services"
+version = "0.1.0"
+
+[[package]]
+name = "redis_services"
+version = "0.1.0"

@@ -4,6 +4,12 @@ resolver = '2'
 members = [
 	'apps/auth_services',
 	'apps/post_services',
+	'libs/redis_services',
+	'libs/rabbitmq_services',
+	'libs/rabbitmq_libs',
+	'libs/redis_libs',
+	'libs/kafka_libs',
+	'libs/pgsql_libs',
 ]
 
 [profile.release]
