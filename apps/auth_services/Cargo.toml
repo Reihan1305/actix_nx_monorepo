@@ -5,6 +5,7 @@ edition = "2021"
 
 
 [dependencies]
+log = "0.4"
 pgsql_libs= { path = "../../libs/pgsql_libs"}
 dotenv= "0.15"
 actix-cors = "0.7"                               

@@ -1,11 +1,14 @@
 use actix_web::{
     get, middleware::Logger, web::{self, scope}, App, HttpResponse, HttpServer, Responder
 };
+use log::{error, info};
+use modules::user_handlers::auth_config;
 use pgsql_libs::{create_db_pool, DbPool};
 use serde_json::json;
 use dotenv::dotenv;
 use env_logger;
 
+mod modules;
 mod env_var;
 use env_var::DB_URL;
 
@@ -18,16 +21,17 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok(); // Load environment variables
     env_logger::init(); // enable logger
 
-    let db_url: String = DB_URL.clone();
+    info!("Starting server...");
 
+    let db_url: String = DB_URL.clone();
     // try to create db pool 
     let db_pool: DbPool = match create_db_pool(db_url, 5, 50).await {
         Ok(pool) => {
-            println!("✅ Database connection success");
+            info!("✅ Database connection success");
             pool
         }
         Err(err) => {
-            eprintln!("❌ Database connection failed: {}", err);
+            error!("❌ Database connection failed: {}", err);
             std::process::exit(1);
         }
     };
@@ -36,10 +40,11 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(AppState { db: db_pool.clone() }))
-            .wrap(Logger::default()) // add logging middleware
+            .wrap(Logger::default())
             .service(
                 scope("/api")
                     .service(api_health_check)
+                    .configure(auth_config)
             )
     })
     .bind(("0.0.0.0", 8080))?
@@ -53,10 +58,12 @@ async fn api_health_check(data: web::Data<AppState>) -> impl Responder {
 
     // Check Database
     if let Err(err) = sqlx::query("SELECT 1;").fetch_one(&data.db).await {
+        error!("failed to connect database");
         error_messages.push(json!({
             "database": format!("❌ Cannot connect to database: {}", err)
         }));
     }
+    info!("checking database");
 
     if !error_messages.is_empty() {
         return HttpResponse::BadRequest().json(json!({ "error": error_messages }));
