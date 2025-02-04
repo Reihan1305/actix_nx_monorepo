@@ -1,6 +1,7 @@
-use sqlx::{query_as, PgPool};
+use sqlx::{query, query_as, PgPool};
+use uuid::Uuid;
 
-use super::user_models::{RegisterData, RegisterPayload};
+use super::user_models::{LoginQueryPayload, RegisterData, RegisterPayload};
 
 
 pub struct UserQuery {}
@@ -45,5 +46,76 @@ impl UserQuery {
         .fetch_one(db_pool)
         .await
         .map_err(|err| format!("error query: {}", err)) 
+    }
+
+    pub async fn create_refresh_token(
+        token:&str,
+        userid:Uuid,
+        db_pool: &PgPool
+    )->Result<(),String>{
+        let _ = query!(
+            r#"
+            INSERT INTO "refresh_token" 
+            (userid,refreshtoken) VALUES
+            ($1,$2)
+            "#,
+            userid,
+            token
+        ).execute(db_pool).await.map_err(|error|{
+            format!("error database: {}",error)
+        });
+        Ok(())
+    }
+
+    
+    pub async fn find_refresh_token(
+        token:String,
+        userid:Uuid,
+        db_pool: &PgPool
+    )-> Result<String,String>{
+        match query!(
+            r#"
+                SELECT * FROM "refresh_token" where userid = $1 AND refreshtoken = $2
+            "#,
+            userid,
+            token
+        ).fetch_one(db_pool).await{
+            Ok(_)=>Ok(token),
+            Err(error)=>Err(format!("error database: {}", error))
+        }
+
+    }
+
+    pub async fn login_query(
+        email: Option<String>,
+        username: Option<String>,
+        db_pool: &PgPool
+    )->Result<LoginQueryPayload,String>{
+        
+        if email.is_none() && username.is_none(){
+            return Err(String::from("email and username is empty!"));
+        }
+        
+        let login_payload = if let Some(email) = email {
+            query_as!(
+                LoginQueryPayload,
+                r#"SELECT id, email, username, password FROM "user" WHERE email = $1"#,
+                email
+            )
+            .fetch_one(db_pool)
+            .await
+        } else {
+            query_as!(
+                LoginQueryPayload,
+                r#"SELECT id, email, username, password FROM "user" WHERE username = $1"#,
+                username
+            )
+            .fetch_one(db_pool)
+            .await
+        };
+        match login_payload {
+            Ok(payload)=> Ok(payload),
+            Err(message)=>Err(format!("{}",message))
+        }
     }
 }

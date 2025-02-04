@@ -9,6 +9,7 @@ use dotenv::dotenv;
 use env_logger;
 
 mod modules;
+mod utils;
 mod env_var;
 use env_var::DB_URL;
 

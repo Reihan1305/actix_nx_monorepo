@@ -1,12 +1,12 @@
 use actix_web::{post, web::{scope, Data, Json, ServiceConfig}, HttpResponse, Responder};
-use log::info;
+use log::{error, info};
 use serde_json::json;
 use validator::Validate;
 use std::{borrow::Cow, collections::HashMap, time::Instant};
 
 use crate::AppState;
 
-use super::{user_models::RegisterData, user_services::UserServices};
+use super::{user_models::{LoginData, RegisterData}, user_services::UserServices};
 
 // Validation function
 fn json_validate<T:Validate>(data: Json<T>) -> Result<T, HttpResponse> {
@@ -68,9 +68,42 @@ async fn register_handlers(
     }
 }
 
+#[post("/login")]
+async fn login_handlers(
+    login_body: Json<LoginData>,
+    app_data: Data<AppState>
+) -> impl Responder{
+    let start = Instant::now();
+
+    info!("login proccess started: {:?}",start);
+    
+    let login_data = login_body.into_inner();
+
+    match UserServices::login(login_data, &app_data.db).await{
+        Ok(payload)=>{
+            let end = Instant::now();
+            info!("login success, response time: {:?}", end - start);
+            HttpResponse::Ok().json(json!({
+                "status":"success",
+                "message":"login successfull",
+                "data":payload
+            }))
+        },
+        Err(errors)=>{
+            let end = Instant::now();
+            error!("server error: {}, response time: {:?}",errors, end - start);
+            HttpResponse::BadGateway().json(json!({
+                "status":"failed",
+                "message":format!("server Error: {}",errors)
+            }))
+        }
+    }
+}
+
 pub fn auth_config(config:&mut ServiceConfig){
     config.service(
         scope("/auth")
         .service(register_handlers)
+        .service(login_handlers)
     );
 }
