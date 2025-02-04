@@ -10,6 +10,7 @@ members = [
 	'libs/redis_libs',
 	'libs/kafka_libs',
 	'libs/pgsql_libs',
+	'apps/post_gateway',
 ]
 
 [profile.release]
