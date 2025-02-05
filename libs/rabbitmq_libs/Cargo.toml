@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
+deadpool-lapin = "0.12.1"
+lapin = "2.5.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

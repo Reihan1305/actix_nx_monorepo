@@ -4,7 +4,7 @@ use pgsql_libs::DbPool;
 use r2d2_redis::redis::{Commands, RedisError};
 use redis_libs::RedisPool;
 
-use crate::utils::{jwt_utils::{decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken, TokenClaims}};
+use crate::utils::{jwt_utils::{decode_refresh_token, generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken, TokenClaims}};
 
 use super::{user_models::{LoginData, LoginPayload, RegisterData, RegisterPayload}, user_query::UserQuery};
 
