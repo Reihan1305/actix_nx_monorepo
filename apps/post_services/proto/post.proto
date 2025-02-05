@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package post;
+
+service Post{
+ rpc create_post(PostRequest) returns (PostResponse){}
+};
+
+message PostRequest{
+    string user_id = 1;
+    string username = 2 ;
+    string title = 3;
+    string content = 4;
+};
+
+message PostResponse{
+    string user_id = 1;
+    string username = 2 ;
+    string title = 3;
+    string content = 4;
+}   
+

@@ -234,5 +234,4 @@ impl UserServices {
             Err(error) => Err(format!("Database error: {}", error)),
         }
     }
-
 }
