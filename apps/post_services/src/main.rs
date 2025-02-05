@@ -5,6 +5,9 @@ use tonic::{async_trait, transport::Server, Request, Response, Status};
 
 pub mod proto {
     tonic::include_proto!("post");
+
+    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
+    tonic::include_file_descriptor_set!("post_descriptor");
 }
 
 #[derive(Debug,Default)]
@@ -38,7 +41,12 @@ async fn main()-> Result<(), Box<dyn Error>>{
 
     let post = PostService::default();
 
+    let services = tonic_reflection::server::Builder::configure()
+    .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+    .build_v1()?;
+
     Server::builder()
+    .add_service(services)
     .add_service(PostServer::new(post))
     .serve(address)
     .await?;
