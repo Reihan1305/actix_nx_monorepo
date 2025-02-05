@@ -1,10 +1,10 @@
-use actix_web::{post, web::{scope, Data, Json, ServiceConfig}, HttpResponse, Responder};
+use actix_web::{get, post, web::{scope, Data, Json, ServiceConfig}, HttpMessage, HttpRequest, HttpResponse, Responder};
 use log::{error, info};
 use serde_json::json;
 use validator::Validate;
 use std::{borrow::Cow, collections::HashMap, time::Instant};
 
-use crate::AppState;
+use crate::{middlewares::refresh_token_middleware::RefreshToken, AppState};
 
 use super::{user_models::{LoginData, RegisterData}, user_services::UserServices};
 
@@ -100,10 +100,50 @@ async fn login_handlers(
     }
 }
 
+#[get("/refresh_token")]
+async fn refresh_token_handler(
+    req:HttpRequest,
+    app_state:Data<AppState>,
+) -> impl Responder{
+    let start = Instant::now();
+    let token = req.extensions().get::<String>().cloned().expect("token not found");
+
+    match UserServices::refresh_token(token, &app_state.db,&app_state.redis).await{
+        Ok(access_token)=>{
+            info!("proccess token: {}",access_token);
+
+            let end = Instant::now();
+            info!("proccess refresh_token success, request time: {:?}",end - start);
+            HttpResponse::Ok().json(json!({
+                "status":"success",
+                "message":"get token success",
+                "data":{
+                    "access_token":format!("{}",access_token)
+                }
+            }))
+        },
+        Err(error)=>{
+            info!("proccess token failed: {}",error);
+            HttpResponse::BadGateway().json(json!({
+                "status":"failed",
+                "message":format!("server error: {}",error)
+            }))
+        }
+    }
+}
+
+
 pub fn auth_config(config:&mut ServiceConfig){
     config.service(
         scope("/auth")
         .service(register_handlers)
         .service(login_handlers)
+    );
+}
+pub fn token_config(config:&mut ServiceConfig){
+    config.service(
+        scope("/token")
+        .wrap(RefreshToken)
+        .service(refresh_token_handler)
     );
 }

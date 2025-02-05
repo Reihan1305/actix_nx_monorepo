@@ -1,6 +1,8 @@
 use sqlx::{query, query_as, PgPool};
 use uuid::Uuid;
 
+use crate::utils::types_utils::AccessToken;
+
 use super::user_models::{LoginQueryPayload, RegisterData, RegisterPayload};
 
 
@@ -66,13 +68,12 @@ impl UserQuery {
         });
         Ok(())
     }
-
     
     pub async fn find_refresh_token(
         token:String,
         userid:Uuid,
         db_pool: &PgPool
-    )-> Result<String,String>{
+    )-> Result<Uuid,String>{
         match query!(
             r#"
                 SELECT * FROM "refresh_token" where userid = $1 AND refreshtoken = $2
@@ -80,7 +81,7 @@ impl UserQuery {
             userid,
             token
         ).fetch_one(db_pool).await{
-            Ok(_)=>Ok(token),
+            Ok(_)=>Ok(userid),
             Err(error)=>Err(format!("error database: {}", error))
         }
 
@@ -116,6 +117,22 @@ impl UserQuery {
         match login_payload {
             Ok(payload)=> Ok(payload),
             Err(message)=>Err(format!("{}",message))
+        }
+    }
+
+    pub async fn find_user_by_id(
+        id: Uuid,
+        db_pool: &PgPool
+    )-> Result<AccessToken,String>{
+        match query_as!(
+            AccessToken,
+            r#"
+            SELECT id, username, email FROM "user" where id = $1;
+            "#,
+            id
+        ).fetch_one(db_pool).await{
+            Ok(user)=>Ok(user),
+            Err(error)=> Err(format!("db error: {}", error))
         }
     }
 }

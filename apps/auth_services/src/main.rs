@@ -2,19 +2,21 @@ use actix_web::{
     get, middleware::Logger, web::{self, scope}, App, HttpResponse, HttpServer, Responder
 };
 use log::{error, info};
-use modules::user_handlers::auth_config;
+use modules::user_handlers::{auth_config, token_config};
 use pgsql_libs::{create_db_pool, DbPool};
 use serde_json::json;
 use dotenv::dotenv;
 use env_logger;
-
+use redis_libs::{RedisPool,redis_connect};
+mod middlewares;
 mod modules;
 mod utils;
 mod env_var;
-use env_var::DB_URL;
+use env_var::{DB_URL, REDIS_HOSTNAME};
 
 pub struct AppState {
-    db: DbPool
+    db: DbPool,
+    redis: RedisPool
 }
 
 #[actix_web::main]
@@ -36,16 +38,20 @@ async fn main() -> std::io::Result<()> {
             std::process::exit(1);
         }
     };
+    let redis_host = REDIS_HOSTNAME.clone();
+
+    let redis_pool: RedisPool = redis_connect(redis_host,None);
 
     // Start server
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(AppState { db: db_pool.clone() }))
+            .app_data(web::Data::new(AppState { db: db_pool.clone(), redis: redis_pool.clone()}))
             .wrap(Logger::default())
             .service(
                 scope("/api")
                     .service(api_health_check)
                     .configure(auth_config)
+                    .configure(token_config)
             )
     })
     .bind(("0.0.0.0", 8080))?

@@ -648,6 +648,7 @@ dependencies = [
  "pgsql_libs",
  "r2d2_redis",
  "redis 0.28.2",
+ "redis_libs",
  "regex",
  "serde",
  "serde_json",
@@ -2664,6 +2665,9 @@ dependencies = [
 [[package]]
 name = "redis_libs"
 version = "0.1.0"
+dependencies = [
+ "r2d2_redis",
+]
 
 [[package]]
 name = "redox_syscall"

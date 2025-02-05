@@ -16,7 +16,7 @@ impl<T: Serialize> TokenClaims<T> {
     }
 }
 
-pub fn decode_token<T>(token: String) -> Result<TokenData<TokenClaims<T>>, String>
+pub fn decode_token<T>(token: &str) -> Result<TokenData<TokenClaims<T>>, String>
 where
     T: for<'de> Deserialize <'de>,
 {
@@ -38,10 +38,10 @@ pub fn generate_access_token(data: AccessToken) -> Result<String, String> {
     TokenClaims::<AccessToken>::generate_token(data, Duration::minutes(20))
 }
 
-pub fn decode_refresh_token(token: String) -> Result<TokenData<TokenClaims<RefreshToken>>, String> {
+pub fn decode_refresh_token(token: &str) -> Result<TokenData<TokenClaims<RefreshToken>>, String> {
     decode_token(token)
 }
 
-pub fn decode_access_token(token: String) -> Result<TokenData<TokenClaims<AccessToken>>, String> {
+pub fn decode_access_token(token: &str) -> Result<TokenData<TokenClaims<AccessToken>>, String> {
     decode_token(token)
 }

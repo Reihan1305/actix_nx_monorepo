@@ -1,7 +1,11 @@
 use argon2::{password_hash::{rand_core::OsRng, SaltString}, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use log::info;
 use pgsql_libs::DbPool;
+use r2d2_redis::redis::{Commands, RedisError};
+use redis_libs::RedisPool;
+use uuid::Uuid;
 
-use crate::utils::{jwt_utils::{generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken}};
+use crate::utils::{jwt_utils::{decode_refresh_token, generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken, TokenClaims}};
 
 use super::{user_models::{LoginData, LoginPayload, RegisterData, RegisterPayload}, user_query::UserQuery};
 
@@ -95,4 +99,60 @@ impl UserServices {
             Err(error) => Err(format!("Error generating refresh token: {}", error)),
         }
     }    
+
+    pub async fn refresh_token(
+        token:String,
+        db_pool: &DbPool,
+        redis_pool: &RedisPool
+    )->Result<String,String>{
+        let refresh_token: Result<jsonwebtoken::TokenData<TokenClaims<RefreshToken>>, String> = decode_refresh_token(&token);
+
+        match refresh_token{
+            Ok(decode_token)=>{
+                match UserQuery::find_refresh_token(token, decode_token.claims.token.id, db_pool).await{
+                    Ok(user_id)=>{
+                        match UserQuery::find_user_by_id(user_id, db_pool).await {
+                            Ok(user)=>{
+                                let access_token = generate_access_token(user);
+                                match access_token {
+                                    Ok(token)=>{
+                                        let _ = Self::store_access_token(user_id, token.clone(), redis_pool);
+                                        Ok(token)
+                                    },
+                                    Err(error)=> Err(format!("generate token error: {}",error))
+                                }
+                            },
+                            Err(error)=>{
+                                Err(format!("user not found :{}",error))
+                            }
+                        }
+                    },
+                    Err(error)=>Err(error)
+                }
+            },
+            Err(error)=> return Err(error)
+        }
+    }
+
+    pub fn store_access_token(
+        user_id: Uuid,
+        token: String,
+        redis_pool: &RedisPool,
+    ) -> Result<(), String> {
+        let redis_key = format!("access_token:{}", user_id);
+
+        let mut conn = redis_pool.get().map_err(|e| e.to_string())?;
+
+        let set_data: Result<String, RedisError> = conn.set(&redis_key, token.clone());
+        match set_data {
+            Ok(data)=>{
+                info!("data inserted: {}",data);
+                Ok(())
+            },
+            Err(error)=>{
+                Err(format!("error redis: {}", error))
+            }
+        }
+    }
+
 }
