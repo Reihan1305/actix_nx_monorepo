@@ -1,8 +1,11 @@
 use argon2::{password_hash::{rand_core::OsRng, SaltString}, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use lapin::{options::BasicPublishOptions, publisher_confirm::PublisherConfirm, types::FieldTable, BasicProperties};
 use log::info;
 use pgsql_libs::DbPool;
 use r2d2_redis::redis::{Commands, RedisError};
+use rabbitmq_libs::RabbitMqPool;
 use redis_libs::RedisPool;
+use serde_json::json;
 
 use crate::utils::{jwt_utils::{decode_refresh_token, generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken, TokenClaims}};
 
@@ -13,28 +16,6 @@ use super::{user_models::{LoginData, LoginPayload, RegisterData, RegisterPayload
 pub struct UserServices{}
 
 impl UserServices {
-    pub async fn register(
-         mut data:RegisterData,
-        db_pool:&DbPool
-    )->Result<RegisterPayload,String>{
-        
-        let argon2 = Argon2::default();
-        let salt :SaltString = SaltString::generate(&mut OsRng);
-
-        let password_hash = match argon2.hash_password(data.password.as_bytes(), &salt) {
-            Ok(hash) => hash.to_string(),
-            Err(e) => {
-                return Err(format!("{}",e))
-            }
-        };
-
-        data.password = password_hash;
-        match UserQuery::create_user(data, &db_pool).await {
-            Ok(register_payload)=>Ok(register_payload),
-            Err(error)=>Err(error)
-        }
-    }
-
     pub async fn login(
         data: LoginData,
         db_pool: &DbPool
@@ -170,4 +151,88 @@ impl UserServices {
             }
         }
     }
+
+    //register queue
+    pub async fn register(
+        mut data: RegisterData,
+        db_pool: &DbPool,
+        rabbit_pool: &RabbitMqPool,
+    ) -> Result<RegisterPayload, String> {
+        let argon2 = Argon2::default();
+        let salt: SaltString = SaltString::generate(&mut OsRng);
+        let password_hash = match argon2.hash_password(data.password.as_bytes(), &salt) {
+            Ok(hash) => hash.to_string(),
+            Err(e) => return Err(format!("Password hash error: {}", e)),
+        };
+
+        data.password = password_hash;
+
+        // Koneksi ke RabbitMQ
+        let conn = match rabbit_pool.get().await {
+            Ok(conn) => conn,
+            Err(err) => {
+                println!("❌ Cannot connect to RabbitMQ: {}", err);
+                return Err(format!("RabbitMQ connection error: {}", err));
+            }
+        };
+
+        let channel = match conn.create_channel().await {
+            Ok(channel) => channel,
+            Err(err) => {
+                println!("❌ Failed to create RabbitMQ channel: {}", err);
+                return Err(format!("RabbitMQ channel error: {}", err));
+            }
+        };
+
+        // Pastikan antrian tersedia
+        if let Err(err) = channel
+            .queue_declare(
+                "register_queue",
+                lapin::options::QueueDeclareOptions::default(),
+                FieldTable::default(),
+            )
+            .await
+        {
+            println!("❌ Failed to declare queue: {}", err);
+            return Err(format!("RabbitMQ queue declare error: {}", err));
+        }
+
+        let payload = json!({
+            "email": data.email,
+            "username": data.username,
+            "password": data.password,
+        });
+
+        let payload_bytes = payload.to_string().into_bytes();
+
+        let confirm: PublisherConfirm = match channel
+            .basic_publish(
+                "",
+                "register_queue",
+                BasicPublishOptions::default(),
+                &payload_bytes,
+                BasicProperties::default(),
+            )
+            .await
+        {
+            Ok(confirm) => confirm,
+            Err(err) => {
+                println!("❌ Failed to publish message: {}", err);
+                return Err(format!("RabbitMQ publish error: {}", err));
+            }
+        };
+
+        if confirm.await.is_err() {
+            return Err("RabbitMQ confirmation error".to_string());
+        }
+
+        info!("✅ Successfully published register request to queue");
+
+        // Simpan user ke database
+        match UserQuery::create_user(data, db_pool).await {
+            Ok(register_payload) => Ok(register_payload),
+            Err(error) => Err(format!("Database error: {}", error)),
+        }
+    }
+
 }

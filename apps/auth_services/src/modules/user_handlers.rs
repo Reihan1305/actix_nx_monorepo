@@ -47,7 +47,7 @@ async fn register_handlers(
     };
 
     // Attempt to register user
-    match UserServices::register(register_data, &app_data.db).await {
+    match UserServices::register(register_data, &app_data.db,&app_data.rabbit).await {
         Ok(user_payload) => {
             info!("User registered successfully with ID: {}", user_payload.id);
             let end:Instant = Instant::now();
