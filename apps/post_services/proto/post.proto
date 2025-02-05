@@ -4,7 +4,12 @@ package post;
 
 service Post{
  rpc create_post(PostRequest) returns (PostResponse){}
+ rpc get_post_by_id(GetPostByIdRequest) returns (PostResponse){}
 };
+
+message GetPostByIdRequest{
+    string post_id = 1;
+}
 
 message PostRequest{
     string user_id = 1;
@@ -14,9 +19,10 @@ message PostRequest{
 };
 
 message PostResponse{
-    string user_id = 1;
-    string username = 2 ;
-    string title = 3;
-    string content = 4;
+    string post_id = 1;
+    string user_id = 2;
+    string username = 3;
+    string title = 4;
+    string content = 5;
 }   
 

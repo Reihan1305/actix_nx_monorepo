@@ -2765,7 +2765,9 @@ version = "0.1.0"
 name = "post_services"
 version = "0.1.0"
 dependencies = [
+ "pgsql_libs",
  "prost",
+ "sqlx",
  "tokio",
  "tonic",
  "tonic-build",

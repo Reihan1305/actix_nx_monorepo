@@ -1,7 +1,11 @@
-use std::error::Error;
+use std::{env::var, error::Error};
 
-use proto::post_server::{Post,PostServer};
-use tonic::{async_trait, transport::Server, Request, Response, Status};
+use modules::post_services::PostService;
+use pgsql_libs::{create_db_pool, DbPool};
+use proto::post_server::PostServer;
+use tonic::transport::Server;
+
+pub mod modules;
 
 pub mod proto {
     tonic::include_proto!("post");
@@ -10,36 +14,21 @@ pub mod proto {
     tonic::include_file_descriptor_set!("post_descriptor");
 }
 
-#[derive(Debug,Default)]
-pub struct PostService;
-
-#[async_trait]
-impl Post for PostService{
-    async fn create_post(
-        &self,
-        request: Request<proto::PostRequest>
-    )->Result<Response<proto::PostResponse>,Status>{
-        println!("request: {:?}",request);
-        
-        let input = request.get_ref();
-
-        let response = proto::PostResponse{
-            user_id: input.user_id.clone(),
-            username: input.username.clone(),
-            title: input.title.clone(),
-            content: input.content.clone()        
-        };
-
-        Ok(Response::new(response))
-    }
-}
-
-
 #[tokio::main]
 async fn main()-> Result<(), Box<dyn Error>>{
     let address = "[::1]:50501".parse()?;
 
-    let post = PostService::default();
+    let db_url = var("DATABASE_URL").expect("invalid db url");
+
+    let db_pool: DbPool = match create_db_pool(db_url, 5, 50).await{
+        Ok(pool)=>pool,
+        Err(error)=>{
+            println!("error db_pool: {}",error);
+            std::process::exit(1);
+        }
+    };
+
+    let post = PostService::new(db_pool);
 
     let services = tonic_reflection::server::Builder::configure()
     .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
