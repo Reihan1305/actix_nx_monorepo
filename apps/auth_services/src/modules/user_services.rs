@@ -3,9 +3,8 @@ use log::info;
 use pgsql_libs::DbPool;
 use r2d2_redis::redis::{Commands, RedisError};
 use redis_libs::RedisPool;
-use uuid::Uuid;
 
-use crate::utils::{jwt_utils::{decode_refresh_token, generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken, TokenClaims}};
+use crate::utils::{jwt_utils::{decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken, TokenClaims}};
 
 use super::{user_models::{LoginData, LoginPayload, RegisterData, RegisterPayload}, user_query::UserQuery};
 
@@ -116,7 +115,7 @@ impl UserServices {
                                 let access_token = generate_access_token(user);
                                 match access_token {
                                     Ok(token)=>{
-                                        let _ = Self::store_access_token(user_id, token.clone(), redis_pool);
+                                        let _ = Self::store_access_token(token.clone(), redis_pool);
                                         Ok(token)
                                     },
                                     Err(error)=> Err(format!("generate token error: {}",error))
@@ -135,11 +134,10 @@ impl UserServices {
     }
 
     pub fn store_access_token(
-        user_id: Uuid,
         token: String,
         redis_pool: &RedisPool,
     ) -> Result<(), String> {
-        let redis_key = format!("access_token:{}", user_id);
+        let redis_key = format!("access_token");
 
         let mut conn = redis_pool.get().map_err(|e| e.to_string())?;
 
@@ -155,4 +153,21 @@ impl UserServices {
         }
     }
 
+    pub async fn access_token(
+        token: AccessToken,
+        db_pool: &DbPool
+    )-> Result<AccessToken,String>{
+        match UserQuery::find_user_by_id(token.id, db_pool).await{
+            Ok(user)=>{
+                if user.email != token.email{
+                    return Err("invalid token".to_string());
+                }else{
+                    Ok(user)
+                }
+            },
+            Err(error)=>{
+                return Err(error)
+            }
+        }
+    }
 }

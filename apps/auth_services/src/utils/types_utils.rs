@@ -8,7 +8,7 @@ pub struct TokenClaims<T> {
     pub token: T,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize,Clone,Debug)]
 pub struct AccessToken {
     pub id: Uuid,
     pub username: String,

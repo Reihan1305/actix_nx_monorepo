@@ -1,15 +1,13 @@
 use std::fmt;
 
 use actix_web::{
-    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    http::header::HeaderValue,
-    Error, HttpMessage, HttpResponse, ResponseError,
+    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform}, http::header::HeaderValue, Error, HttpMessage, HttpResponse, ResponseError
 };
 use futures::future::{ok, LocalBoxFuture, Ready};
-use serde_json::json; // Untuk JSON response
+use serde_json::json;
 
 #[derive(Debug)]
-struct UnauthorizedError;
+pub struct UnauthorizedError;
 
 impl fmt::Display for UnauthorizedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -24,11 +22,10 @@ impl ResponseError for UnauthorizedError {
     }
 }
 
-
 // ✅ Middleware Factory Struct
-pub struct RefreshToken;
+pub struct RefreshTokenMW;
 
-impl<S, B> Transform<S, ServiceRequest> for RefreshToken
+impl<S, B> Transform<S, ServiceRequest> for RefreshTokenMW
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
@@ -64,7 +61,7 @@ where
     forward_ready!(service); // Meneruskan status ready ke service yang di-wrap
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        // ✅ Mengambil header "refresh-token"
+        
         let refresh_token: Option<&HeaderValue> = req.headers().get("refresh-token");
 
         if let Some(token) = refresh_token {

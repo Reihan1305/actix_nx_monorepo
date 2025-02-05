@@ -4,7 +4,7 @@ use serde_json::json;
 use validator::Validate;
 use std::{borrow::Cow, collections::HashMap, time::Instant};
 
-use crate::{middlewares::refresh_token_middleware::RefreshToken, AppState};
+use crate::{middlewares::{access_token_middleware::AccessTokenMW, refresh_token_middleware::RefreshTokenMW}, utils::types_utils::AccessToken, AppState};
 
 use super::{user_models::{LoginData, RegisterData}, user_services::UserServices};
 
@@ -132,6 +132,36 @@ async fn refresh_token_handler(
     }
 }
 
+#[get("/user_profile")]
+async fn user_profile_handler(
+    req: HttpRequest,
+    app_state: Data<AppState>
+)-> impl Responder{
+    let start = Instant::now();
+    let token = req.extensions().get::<AccessToken>().cloned().expect("token not found");
+
+    info!("find user proccess, token: {:?}",token);
+    println!("token :{:?}",token);
+    match UserServices::access_token(token, &app_state.db).await{
+        Ok(user)=>{
+            info!("find user, data:{:?}",user);
+            let end = Instant::now();
+
+            info!("get user success,response time: {:?}",end - start);
+            HttpResponse::Ok().json(json!({
+                "status":"success",
+                "message":"get user profile success",
+                "data":user
+            }))
+        },
+        Err(error)=>{
+            HttpResponse::BadGateway().json(json!({
+                "status":"failed",
+                "message": format!("server error: {}",error)
+            }))
+        }
+    }    
+}
 
 pub fn auth_config(config:&mut ServiceConfig){
     config.service(
@@ -143,7 +173,15 @@ pub fn auth_config(config:&mut ServiceConfig){
 pub fn token_config(config:&mut ServiceConfig){
     config.service(
         scope("/token")
-        .wrap(RefreshToken)
+        .wrap(RefreshTokenMW)
         .service(refresh_token_handler)
+    );
+}
+
+pub fn user_config(config:&mut ServiceConfig){
+    config.service(
+        scope("/user")
+        .wrap(AccessTokenMW)
+        .service(user_profile_handler)
     );
 }

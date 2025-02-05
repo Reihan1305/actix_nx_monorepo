@@ -2,7 +2,7 @@ use actix_web::{
     get, middleware::Logger, web::{self, scope}, App, HttpResponse, HttpServer, Responder
 };
 use log::{error, info};
-use modules::user_handlers::{auth_config, token_config};
+use modules::user_handlers::{auth_config, token_config, user_config};
 use pgsql_libs::{create_db_pool, DbPool};
 use serde_json::json;
 use dotenv::dotenv;
@@ -52,6 +52,7 @@ async fn main() -> std::io::Result<()> {
                     .service(api_health_check)
                     .configure(auth_config)
                     .configure(token_config)
+                    .configure(user_config)
             )
     })
     .bind(("0.0.0.0", 8080))?
