@@ -1,5 +1,5 @@
 use pgsql_libs::DbPool;
-use sqlx::{query_as, types::Uuid};
+use sqlx::{query, query_as, types::Uuid};
 use crate::proto::PostResponse;
 
 use super::post_models::{CreatePost, UpdatePost, UserPayload};
@@ -131,4 +131,45 @@ impl PostQuery{
             Err(error) => Err(error.to_string()),
         }
     }
+
+    pub async fn delete_post(
+        user_id: Uuid,
+        post_id: Uuid,
+        db_pool: &DbPool
+    ) -> Result<Uuid, String> {
+
+        let post = query!(
+            r#"
+            SELECT id, user_id FROM posts WHERE id = $1;
+            "#,
+            post_id
+        )
+        .fetch_optional(db_pool)
+        .await;
+    
+        let post = match post {
+            Ok(Some(post)) => post,
+            Ok(None) => return Err("Post not found".to_string()),
+            Err(error) => return Err(format!("Database error: {}", error)),
+        };
+    
+        if post.user_id != user_id {
+            return Err("You do not have permission to delete this post".to_string());
+        }
+    
+        let result = query!(
+            r#"
+            DELETE FROM posts WHERE id = $1;
+            "#,
+            post_id
+        )
+        .execute(db_pool)
+        .await;
+    
+        match result {
+            Ok(_) => Ok(post_id),
+            Err(error) => Err(format!("Failed to delete post: {}", error)),
+        }
+    }
+    
 }

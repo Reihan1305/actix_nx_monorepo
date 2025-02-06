@@ -2,7 +2,7 @@ use sqlx::types::Uuid;
 use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
 
-use crate::proto::{post_server::Post, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest};
+use crate::proto::{post_server::Post, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest};
 
 use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
 
@@ -117,8 +117,30 @@ impl Post for PostService{
             Err(error)=> return Err(Status::internal(error))
         };
 
-        let request: PostListResponse = PostListResponse{
-            posts:posts
+        let response: PostListResponse = PostListResponse{
+            posts
         };
+
+        Ok(Response::new(response))
     }   
+
+    async fn delete_post(
+        &self,
+        request:Request<PostIdRequest>
+    )-> Result<Response<DeleteResponse>,Status>{
+        let data = request.get_ref();
+        
+        let user_id: Uuid =  "eb80c473-14fd-4804-9a42-8a7763655242".parse::<Uuid>().unwrap();
+
+        match PostQuery::delete_post(user_id, data.post_id.parse::<Uuid>().unwrap(), &self.dbpool).await{
+            Ok(post_id)=>{
+                let response: DeleteResponse = DeleteResponse{
+                    post_id: String::from(post_id),
+                    message: String::from("delete post successfully")
+                };
+                Ok(Response::new(response))
+            },
+            Err(error)=>Err(Status::internal(error))   
+        }
+    }
 }
