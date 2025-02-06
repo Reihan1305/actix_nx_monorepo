@@ -186,7 +186,6 @@ impl UserServices {
 
         data.password = password_hash;
 
-        // Koneksi ke RabbitMQ
         let conn = match rabbit_pool.get().await {
             Ok(conn) => conn,
             Err(err) => {
@@ -203,7 +202,6 @@ impl UserServices {
             }
         };
 
-        // Pastikan antrian tersedia
         if let Err(err) = channel
             .queue_declare(
                 "register_queue",
@@ -247,7 +245,6 @@ impl UserServices {
 
         info!("✅ Successfully published register request to queue");
 
-        // Simpan user ke database
         match UserQuery::create_user(data, db_pool).await {
             Ok(register_payload) => Ok(register_payload),
             Err(error) => Err(format!("Database error: {}", error)),
