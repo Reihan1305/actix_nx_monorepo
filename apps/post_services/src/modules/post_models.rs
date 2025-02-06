@@ -15,3 +15,16 @@ pub struct  PostPayload{
     pub content: String,
     pub id: Uuid
 }
+
+pub struct UpdatePost{
+    pub post_id: Uuid,     
+    pub user_id: Uuid,
+    pub title: String,
+    pub content : String,
+}
+
+pub struct UserPayload {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String
+}

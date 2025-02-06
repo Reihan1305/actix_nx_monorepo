@@ -2765,6 +2765,7 @@ version = "0.1.0"
 name = "post_services"
 version = "0.1.0"
 dependencies = [
+ "auth_services",
  "pgsql_libs",
  "prost",
  "sqlx",

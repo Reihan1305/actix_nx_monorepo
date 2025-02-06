@@ -2,9 +2,9 @@ use sqlx::types::Uuid;
 use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
 
-use crate::proto::{post_server::Post, GetPostByIdRequest, PostRequest, PostResponse};
+use crate::proto::{post_server::Post, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest};
 
-use super::{post_models::CreatePost, post_query::PostQuery};
+use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
 
 #[derive(Debug)]
 pub struct PostService{
@@ -44,7 +44,7 @@ impl Post for PostService{
         };
 
         let response = PostResponse{
-            post_id: new_post.id.to_string(),
+            id: new_post.id.to_string(),
             user_id: new_post.user_id.to_string(),
             username:new_post.username,
             title:new_post.title,
@@ -56,9 +56,9 @@ impl Post for PostService{
 
     async fn get_post_by_id(
         &self,
-        request: Request<GetPostByIdRequest>
+        request: Request<PostIdRequest>
     )-> Result<Response<PostResponse>,Status>{
-        let data: &GetPostByIdRequest = request.get_ref();
+        let data: &PostIdRequest = request.get_ref();
         
         let post = match PostQuery::get_post_by_id(data.post_id.parse::<Uuid>().expect("invalid id"), &self.dbpool).await{
             Ok(post)=>post,
@@ -66,7 +66,7 @@ impl Post for PostService{
         };
 
         let response = PostResponse{
-            post_id: post.id.to_string(),
+            id: post.id.to_string(),
             user_id: post.user_id.to_string(),
             username:post.username,
             title:post.title,
@@ -75,4 +75,50 @@ impl Post for PostService{
 
         Ok(Response::new(response))
     }
+
+    async fn update_post(
+        &self,
+        request: tonic::Request<UpdatePostRequest>
+    )-> Result<Response<PostResponse>,Status>{
+        let data: &UpdatePostRequest= request.get_ref();
+
+        let update_data: UpdatePost = UpdatePost{
+            post_id: data.post_id.parse::<Uuid>().unwrap(),
+            user_id: data.user_id.parse::<Uuid>().unwrap(),
+            content: data.content.clone(),
+            title: data.title.clone(),
+        };
+        match PostQuery::update_post(update_data, &self.dbpool).await{
+            Ok(posts)=>{
+                let response:PostResponse = PostResponse{
+                    content:posts.content,
+                    id:posts.id.to_string(),
+                    title:posts.title,
+                    user_id:posts.user_id.to_string(),
+                    username:posts.username
+                };
+
+                Ok(Response::new(response))
+            },
+            Err(error)=>{
+                Err(Status::internal(error))
+            }
+        }
+    }
+
+    async fn get_all_post(
+        &self,
+        request: Request<GetAllPostRequest>
+    )-> Result<Response<PostListResponse>,Status>{
+        let data: &GetAllPostRequest = request.get_ref();
+
+        let posts = match PostQuery::get_all_posts(&self.dbpool, data.page, data.limits).await{
+            Ok(posts)=>posts,
+            Err(error)=> return Err(Status::internal(error))
+        };
+
+        let request: PostListResponse = PostListResponse{
+            posts:posts
+        };
+    }   
 }
