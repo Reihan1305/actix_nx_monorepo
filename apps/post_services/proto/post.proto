@@ -8,9 +8,14 @@ service Post{
 };
 
 service ProtectedPost{
-    rpc create_post(PostRequest) returns (PostResponse){}
+    rpc create_post(CreatePostRequest) returns (PostResponse){}
     rpc update_post(UpdatePostRequest) returns (PostResponse){}
     rpc delete_post(PostIdRequest) returns (DeleteResponse){}
+}
+
+message CreatePostRequest{
+    string title = 1;
+    string content = 2;
 }
 
 message GetAllPostRequest{
@@ -29,17 +34,9 @@ message PostIdRequest{
 
 message UpdatePostRequest{
     string post_id = 1;     
-    string user_id = 2;
     string title = 4;
     string content = 5;
 }
-
-message PostRequest{
-    string user_id = 1;
-    string username = 2 ;
-    string title = 3;
-    string content = 4;
-};
 
 message PostResponse{
     string id = 1;     

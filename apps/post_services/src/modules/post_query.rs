@@ -1,17 +1,19 @@
 use pgsql_libs::DbPool;
 use sqlx::{query, query_as, types::Uuid};
+use tonic::Status;
+
 use crate::proto::PostResponse;
 
-use super::post_models::{CreatePost, UpdatePost, UserPayload};
+use super::post_models::{CreatePost, PostPayload, UpdatePost, UserPayload};
 pub struct PostQuery;
 
 impl PostQuery{
     pub async fn create_post(
         data: CreatePost,
         db_pool: &DbPool
-    )->Result<PostResponse,String>{
+    )->Result<PostPayload,String>{
         let new_post = query_as!(
-            PostResponse,  
+            PostPayload,  
             r#"
             INSERT INTO "posts" (username, user_id, title, content)
             VALUES ($1, $2, $3, $4)
@@ -34,9 +36,9 @@ impl PostQuery{
     pub async fn get_post_by_id(
         post_id:Uuid,
         db_pool: &DbPool
-    )->Result<PostResponse,String>{
+    )->Result<PostPayload,String>{
         let new_post = query_as!(
-            PostResponse,  
+            PostPayload,  
             r#"
             SELECT username, user_id, title, content, id FROM "posts" 
             where id = $1
@@ -96,22 +98,26 @@ impl PostQuery{
     pub async fn update_post(
         update_data: UpdatePost,
         db_pool: &DbPool,
-    ) -> Result<PostResponse, String> {
+    ) -> Result<PostPayload, Status> {
         // Find the user by ID
         let user: UserPayload = match Self::find_user_by_id(update_data.user_id, db_pool).await {
             Ok(user) => user,
-            Err(error) => return Err(error),
+            Err(error) => return Err(Status::invalid_argument(format!("user not found: {}",error))),
         };
     
         // Find the post by ID
         let post = match Self::get_post_by_id(update_data.post_id, db_pool).await {
             Ok(post) => post,
-            Err(error) => return Err(error),
+            Err(error) => return Err(Status::invalid_argument(format!("post not found: {}",error))),
         };
-    
+        
+        if user.id != post.user_id {
+            return Err(Status::unauthenticated("you are not the owner"))
+        }
+
         // Update the post in the database
         let updated_post = query_as!(
-            PostResponse,
+            PostPayload,
             r#"
             UPDATE posts
             SET title = $1, content = $2
@@ -121,14 +127,14 @@ impl PostQuery{
             update_data.title,
             update_data.content,
             user.id,
-            post.id.parse::<Uuid>().unwrap()
+            post.id
         )
         .fetch_one(db_pool)
         .await;
     
         match updated_post {
             Ok(post) => Ok(post),
-            Err(error) => Err(error.to_string()),
+            Err(error) => Err(Status::aborted(format!("{}",error))),
         }
     }
 

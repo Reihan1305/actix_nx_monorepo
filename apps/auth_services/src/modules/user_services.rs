@@ -96,6 +96,7 @@ impl UserServices {
                                 let access_token = generate_access_token(user);
                                 match access_token {
                                     Ok(token)=>{
+                                        let _ = Self::delete_access_token(redis_pool);
                                         let _ = Self::store_access_token(token.clone(), redis_pool);
                                         Ok(token)
                                     },
@@ -133,6 +134,24 @@ impl UserServices {
             }
         }
     }
+
+    pub fn delete_access_token(
+        redis_pool: &RedisPool
+    )-> Result<(),String>{
+        let redis_key = format!("access_token");
+
+        let mut conn = redis_pool.get().map_err(|e| e.to_string())?;
+
+        let set_data: Result<String, RedisError> = conn.del(&redis_key);
+        match set_data {
+            Ok(data)=>{
+                info!("data inserted: {}",data);
+                Ok(())
+            },
+            Err(error)=>{
+                Err(format!("error redis: {}", error))
+            }
+        }    }
 
     pub async fn access_token(
         token: AccessToken,

@@ -6,7 +6,7 @@ use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
 use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
 use crate::proto::{
-    post_server::Post, protected_post_server::ProtectedPost, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest,
+    post_server::Post, protected_post_server::ProtectedPost, CreatePostRequest, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostResponse, UpdatePostRequest
 };
 #[derive(Debug)]
 
@@ -24,11 +24,6 @@ impl PostService{
     }
 }
 
-impl AuthPostService{
-    pub fn new(dbpool: DbPool)-> Self {
-        Self { dbpool }
-    }
-}
 #[async_trait]
 impl Post for PostService{
     async fn get_all_post(
@@ -41,6 +36,7 @@ impl Post for PostService{
             Ok(posts)=>posts,
             Err(error)=> return Err(Status::internal(error))
         };
+
 
         let response: PostListResponse = PostListResponse{
             posts
@@ -73,31 +69,40 @@ impl Post for PostService{
     }
 }
 
+impl AuthPostService{
+    pub fn new(dbpool: DbPool)-> Self {
+        Self { dbpool }
+    }
+
+    pub fn user_validate<T>(
+        req: &Request<T>
+    )->Result<AccessToken,Status>{
+        match req.extensions().get::<Arc<AccessToken>>(){
+            Some(token)=>{
+                Ok(token.as_ref().clone())
+            },
+            None=>{
+                return Err(Status::unauthenticated(format!("invalid token")))
+            }
+        }
+    }
+}
+
 #[async_trait]
 impl ProtectedPost for AuthPostService{
     async fn create_post(
         &self,
-        request: Request<PostRequest>
+        request: Request<CreatePostRequest>
     )->Result<Response<PostResponse>,Status>{
-
-        let token = request.extensions().get::<Arc<AccessToken>>();
-
-        match token {
-            Some(token_data) => {
-                println!("Token ditemukan: {:?}", token_data);
-            },
-            None => {
-                println!("Token tidak ditemukan di extensions.");
-            }
-        };
+        let user = self::AuthPostService::user_validate(&request)?;
 
         let input = request.get_ref();
 
         let data: CreatePost = CreatePost{
-            user_id:input.user_id.parse::<Uuid>().unwrap(),
+            user_id:user.id,
             content:input.content.clone(),
             title:input.title.clone(),
-            username:input.content.clone()
+            username:user.username
         };
 
         let new_post = match PostQuery::create_post(
@@ -125,11 +130,12 @@ impl ProtectedPost for AuthPostService{
         &self,
         request: tonic::Request<UpdatePostRequest>
     )-> Result<Response<PostResponse>,Status>{
+        let user =  self::AuthPostService::user_validate(&request)?;
         let data: &UpdatePostRequest= request.get_ref();
 
         let update_data: UpdatePost = UpdatePost{
             post_id: data.post_id.parse::<Uuid>().unwrap(),
-            user_id: data.user_id.parse::<Uuid>().unwrap(),
+            user_id: user.id,
             content: data.content.clone(),
             title: data.title.clone(),
         };
@@ -146,7 +152,7 @@ impl ProtectedPost for AuthPostService{
                 Ok(Response::new(response))
             },
             Err(error)=>{
-                Err(Status::internal(error))
+                Err(error)
             }
         }
     }
@@ -156,11 +162,11 @@ impl ProtectedPost for AuthPostService{
         &self,
         request:Request<PostIdRequest>
     )-> Result<Response<DeleteResponse>,Status>{
+        let user =  self::AuthPostService::user_validate(&request)?;
         let data = request.get_ref();
         
-        let user_id: Uuid =  "eb80c473-14fd-4804-9a42-8a7763655242".parse::<Uuid>().unwrap();
 
-        match PostQuery::delete_post(user_id, data.post_id.parse::<Uuid>().unwrap(), &self.dbpool).await{
+        match PostQuery::delete_post(user.id, data.post_id.parse::<Uuid>().unwrap(), &self.dbpool).await{
             Ok(post_id)=>{
                 let response: DeleteResponse = DeleteResponse{
                     post_id: String::from(post_id),

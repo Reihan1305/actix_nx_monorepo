@@ -26,17 +26,15 @@ impl AuthMiddleware {
             Ok(token) => token,
             Err(_) => return Err(Status::unauthenticated("Invalid token: not found in Redis")),
         };
-
         // **Perbaikan: Menghapus titik koma di bawah ini**
         match decode_access_token(&token) {
             Ok(decoded_token) => {
                 let access_token = decoded_token.claims.token;
-                println!("Decoded Access Token: {:?}", access_token);
 
                 req.extensions_mut().insert(Arc::new(access_token));
-                Ok(req) // **Jangan pakai titik koma (;)**
+                Ok(req) 
             }
             Err(error) => Err(Status::unauthenticated(format!("Invalid token: {}", error))),
-        } // **Jangan pakai titik koma di sini**
+        }
     }
 }
