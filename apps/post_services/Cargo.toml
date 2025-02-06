@@ -12,8 +12,12 @@ prost = "0.13.4"
 tonic-web = "0.12.3"
 tower-http = "0.6.2"
 sqlx = { version = "0.8", features = ["runtime-async-std-native-tls", "postgres", "uuid", "chrono"] }
-pgsql_libs= { path = "../../libs/pgsql_libs" }
-auth_services= { path = "../../apps/auth_services" }
+pgsql_libs = { path = "../../libs/pgsql_libs" }
+jwt_libs ={ path = "../../libs/jwt_libs"}
+redis_libs ={ path = "../../libs/redis_libs"}
+redis = "0.28.1"
+lapin = "2.5.0"
+r2d2_redis = "0.14.0"
 
 [build-dependencies]
 tonic-build = "0.12.3"

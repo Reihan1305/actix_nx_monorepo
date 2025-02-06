@@ -1,10 +1,20 @@
+use std::sync::Arc;
+
+use jwt_libs::types::AccessToken;
 use sqlx::types::Uuid;
 use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
 use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
-use crate::proto::{post_server::Post, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest};
+use crate::proto::{
+    post_server::Post, protected_post_server::ProtectedPost, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest,
+};
 #[derive(Debug)]
+
 pub struct PostService{
+    dbpool: DbPool
+}
+
+pub struct AuthPostService{
     dbpool: DbPool
 }
 
@@ -14,12 +24,72 @@ impl PostService{
     }
 }
 
+impl AuthPostService{
+    pub fn new(dbpool: DbPool)-> Self {
+        Self { dbpool }
+    }
+}
 #[async_trait]
 impl Post for PostService{
+    async fn get_all_post(
+        &self,
+        request: Request<GetAllPostRequest>
+    )-> Result<Response<PostListResponse>,Status>{
+        let data: &GetAllPostRequest = request.get_ref();
+
+        let posts = match PostQuery::get_all_posts(&self.dbpool, data.page, data.limits).await{
+            Ok(posts)=>posts,
+            Err(error)=> return Err(Status::internal(error))
+        };
+
+        let response: PostListResponse = PostListResponse{
+            posts
+        };
+
+        Ok(Response::new(response))
+    }   
+
+
+    async fn get_post_by_id(
+        &self,
+        request: Request<PostIdRequest>
+    )-> Result<Response<PostResponse>,Status>{
+        let data: &PostIdRequest = request.get_ref();
+        
+        let post = match PostQuery::get_post_by_id(data.post_id.parse::<Uuid>().expect("invalid id"), &self.dbpool).await{
+            Ok(post)=>post,
+            Err(error)=> return Err(Status::internal(error))
+        };
+
+        let response = PostResponse{
+            id: post.id.to_string(),
+            user_id: post.user_id.to_string(),
+            username:post.username,
+            title:post.title,
+            content:post.content
+        };
+
+        Ok(Response::new(response))
+    }
+}
+
+#[async_trait]
+impl ProtectedPost for AuthPostService{
     async fn create_post(
         &self,
         request: Request<PostRequest>
     )->Result<Response<PostResponse>,Status>{
+
+        let token = request.extensions().get::<Arc<AccessToken>>();
+
+        match token {
+            Some(token_data) => {
+                println!("Token ditemukan: {:?}", token_data);
+            },
+            None => {
+                println!("Token tidak ditemukan di extensions.");
+            }
+        };
 
         let input = request.get_ref();
 
@@ -47,28 +117,6 @@ impl Post for PostService{
             title:new_post.title,
             content:new_post.content
         }; 
-
-        Ok(Response::new(response))
-    }
-
-    async fn get_post_by_id(
-        &self,
-        request: Request<PostIdRequest>
-    )-> Result<Response<PostResponse>,Status>{
-        let data: &PostIdRequest = request.get_ref();
-        
-        let post = match PostQuery::get_post_by_id(data.post_id.parse::<Uuid>().expect("invalid id"), &self.dbpool).await{
-            Ok(post)=>post,
-            Err(error)=> return Err(Status::internal(error))
-        };
-
-        let response = PostResponse{
-            id: post.id.to_string(),
-            user_id: post.user_id.to_string(),
-            username:post.username,
-            title:post.title,
-            content:post.content
-        };
 
         Ok(Response::new(response))
     }
@@ -103,23 +151,6 @@ impl Post for PostService{
         }
     }
 
-    async fn get_all_post(
-        &self,
-        request: Request<GetAllPostRequest>
-    )-> Result<Response<PostListResponse>,Status>{
-        let data: &GetAllPostRequest = request.get_ref();
-
-        let posts = match PostQuery::get_all_posts(&self.dbpool, data.page, data.limits).await{
-            Ok(posts)=>posts,
-            Err(error)=> return Err(Status::internal(error))
-        };
-
-        let response: PostListResponse = PostListResponse{
-            posts
-        };
-
-        Ok(Response::new(response))
-    }   
 
     async fn delete_post(
         &self,

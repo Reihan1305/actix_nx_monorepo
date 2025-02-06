@@ -2777,9 +2777,13 @@ version = "0.1.0"
 name = "post_services"
 version = "0.1.0"
 dependencies = [
- "auth_services",
+ "jwt_libs",
+ "lapin",
  "pgsql_libs",
  "prost",
+ "r2d2_redis",
+ "redis 0.28.2",
+ "redis_libs",
  "sqlx",
  "tokio",
  "tonic",
