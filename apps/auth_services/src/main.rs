@@ -13,7 +13,6 @@ use env_logger;
 use redis_libs::{RedisPool,redis_connect};
 mod middlewares;
 mod modules;
-mod utils;
 mod env_var;
 use env_var::{DB_URL, RABBIT_URL, REDIS_HOSTNAME};
 use rabbitmq_libs::{RabbitMqPool,rabbit_connect};

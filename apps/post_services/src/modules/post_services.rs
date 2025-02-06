@@ -1,11 +1,8 @@
 use sqlx::types::Uuid;
 use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
-
-use crate::proto::{post_server::Post, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest};
-
 use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
-
+use crate::proto::{post_server::Post, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostRequest, PostResponse, UpdatePostRequest};
 #[derive(Debug)]
 pub struct PostService{
     dbpool: DbPool

@@ -7,7 +7,8 @@ use actix_web::{
 use futures::future::{ok, LocalBoxFuture, Ready};
 use r2d2_redis::redis::Commands;
 
-use crate::{utils::jwt_utils::decode_access_token, AppState};
+use  crate::AppState;
+use jwt_libs::decode_access_token;
 use super::refresh_token_middleware::UnauthorizedError;
 
 pub struct AccessTokenMW;
@@ -46,7 +47,7 @@ where
     forward_ready!(service); 
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let app_state = req.app_data::<Data<AppState>>();
+        let app_state: Option<&Data<AppState>> = req.app_data::<Data<AppState>>();
 
         if let Some(state) = app_state {
             let mut redis_conn = match state.redis.get() {

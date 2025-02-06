@@ -7,7 +7,7 @@ use rabbitmq_libs::RabbitMqPool;
 use redis_libs::RedisPool;
 use serde_json::json;
 
-use crate::utils::{jwt_utils::{decode_refresh_token, generate_access_token, generate_refresh_token}, types_utils::{AccessToken, RefreshToken, TokenClaims}};
+use jwt_libs::{{decode_refresh_token, generate_access_token, generate_refresh_token},types::{AccessToken, RefreshToken, TokenClaims}};
 
 use super::{user_models::{LoginData, LoginPayload, RegisterData, RegisterPayload}, user_query::UserQuery};
 

@@ -5,8 +5,11 @@ edition = "2021"
 
 
 [dependencies]
-log = "0.4"
+redis_libs ={ path = "../../libs/redis_libs"}
+rabbitmq_libs ={ path = "../../libs/rabbitmq_libs"}
+jwt_libs = { path = "../../libs/jwt_libs"}
 pgsql_libs= { path = "../../libs/pgsql_libs"}
+log = "0.4"
 dotenv= "0.15"
 actix-cors = "0.7"                               
 actix-web = "4.2.1"                              
@@ -25,6 +28,5 @@ argon2 = "0.5.3"
 lazy_static = "1.5.0"
 regex = "1.11.1"
 jsonwebtoken = "9.3.0"
-redis_libs ={ path = "../../libs/redis_libs"}
-rabbitmq_libs ={ path = "../../libs/rabbitmq_libs"}
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

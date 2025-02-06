@@ -1,0 +1,13 @@
+[package]
+name = "jwt_libs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jsonwebtoken = "9.3.0"
+uuid = { version = "1.2", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = "1.0"                              
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

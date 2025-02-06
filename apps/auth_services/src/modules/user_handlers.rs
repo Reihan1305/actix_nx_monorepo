@@ -3,8 +3,8 @@ use log::{error, info};
 use serde_json::json;
 use validator::Validate;
 use std::{borrow::Cow, collections::HashMap, time::Instant};
-
-use crate::{middlewares::{access_token_middleware::AccessTokenMW, refresh_token_middleware::RefreshTokenMW}, utils::types_utils::AccessToken, AppState};
+use jwt_libs::types::AccessToken;
+use crate::{middlewares::{access_token_middleware::AccessTokenMW, refresh_token_middleware::RefreshTokenMW},AppState};
 
 use super::{user_models::{LoginData, RegisterData}, user_services::UserServices};
 

@@ -2,7 +2,8 @@ use chrono::{Utc, Duration};
 use jsonwebtoken::{decode, encode, errors::Error as JwtError, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use serde::{Deserialize, Serialize};
 
-use super::types_utils::{AccessToken, RefreshToken, TokenClaims};
+pub mod types;
+use types::{AccessToken, RefreshToken, TokenClaims};
 
 
 impl<T: Serialize> TokenClaims<T> {

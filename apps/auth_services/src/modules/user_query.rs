@@ -1,7 +1,7 @@
 use sqlx::{query, query_as, PgPool};
 use uuid::Uuid;
 
-use crate::utils::types_utils::AccessToken;
+use jwt_libs::types::AccessToken;
 
 use super::user_models::{LoginQueryPayload, RegisterData, RegisterPayload};
 

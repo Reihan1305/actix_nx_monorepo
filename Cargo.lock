@@ -670,6 +670,7 @@ dependencies = [
  "env_logger",
  "futures",
  "jsonwebtoken",
+ "jwt_libs",
  "lapin",
  "lazy_static",
  "log",
@@ -2137,6 +2138,17 @@ dependencies = [
  "serde",
  "serde_json",
  "simple_asn1",
+]
+
+[[package]]
+name = "jwt_libs"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "jsonwebtoken",
+ "serde",
+ "serde_json",
+ "uuid",
 ]
 
 [[package]]
