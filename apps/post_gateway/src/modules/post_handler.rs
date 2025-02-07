@@ -6,32 +6,23 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    modules::post_model::{CreatePostRequest, PostResponse}, proto, AppState
+    modules::post_model::{CreatePostRequest, Pagination, PostResponse}, proto, AppState
 };
 
-pub async fn send_event<T>(
+pub async fn send_event(
     producer: &Producer,
     post_id: Uuid,
     user_id: Uuid,
-    message: T,
+    message: String,
 ) -> Result<(), HttpResponse>
-where
-    T: Serialize,
 {
-    let key = format!("{}:{}", user_id, post_id);
+    let key = format!("{}:{}",user_id,post_id);
     let topic = "post";
-
-    // Serialize message ke JSON
-    let event_message = match serde_json::to_string(&message) {
-        Ok(json) => json,
-        Err(_) => return Err(HttpResponse::InternalServerError().json("Failed to serialize message")),
-    };
 
     let producer_guard = producer.lock().await;
     let producer_ref = &*producer_guard;
 
-    // Kirim pesan ke Kafka
-    match send_message(producer_ref, topic, &key, &event_message).await {
+    match send_message(producer_ref, topic, &key, &message).await {
         Ok(_) => Ok(()),
         Err(_) => Err(HttpResponse::InternalServerError().json("Failed to send message to Kafka")),
     }
@@ -68,7 +59,8 @@ pub async fn create_post(
                 user_id:message.user_id.parse::<Uuid>().unwrap(),
                 username:message.username
             };
-            let _ = send_event(&data.kafka_producer,response.id , response.user_id, &response).await;
+            let kafka_message = String::from("post created");
+            let _ = send_event(&data.kafka_producer,response.id , response.user_id, kafka_message).await;
     
             HttpResponse::Created().json(json!({
                 "message": "post created",
@@ -117,6 +109,9 @@ pub async fn update_post(
                 user_id:message.user_id.parse::<Uuid>().unwrap(),
                 username:message.username
             };
+
+            let kafka_message = String::from("post updated");
+            let _ = send_event(&data.kafka_producer,response.id , response.user_id, kafka_message).await;
     
             HttpResponse::Created().json(json!({
                 "message": "post created",
@@ -155,7 +150,11 @@ pub async fn delete_post(
         Ok(message) => {
             let message = message.into_inner();
             let response_message = format!("post: {} successfully deleted",message.post_id);
+            
+            let kafka_message = String::from("post created");
+            let _ = send_event(&data.kafka_producer,message.post_id.parse::<Uuid>().unwrap() , message.user_id.parse::<Uuid>().unwrap(), kafka_message).await;
     
+
             HttpResponse::Created().json(json!({
                 "message": response_message
             }))
@@ -180,13 +179,8 @@ pub fn protected_post_config(config: &mut ServiceConfig) {
     );
 }
 
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
-pub struct Pagination {
-    limits: Option<usize>,
-    page: Option<usize>,
-}
+
 
 #[get("/get_all_post")]
 pub async fn get_all_post(

@@ -10,6 +10,7 @@ members = [
 	'libs/kafka_libs',
 	'libs/pgsql_libs',
 	'libs/jwt_libs',
+	'apps/posts_consumer',
 ]
 
 [profile.release]

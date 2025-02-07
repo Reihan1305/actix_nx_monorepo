@@ -4,7 +4,7 @@ use tonic::Status;
 
 use crate::proto::PostResponse;
 
-use super::post_models::{CreatePost, PostPayload, UpdatePost, UserPayload};
+use super::post_models::{CreatePost, PostPayload, QueryDeleteResponse, UpdatePost, UserPayload};
 pub struct PostQuery;
 
 impl PostQuery{
@@ -142,7 +142,7 @@ impl PostQuery{
         user_id: Uuid,
         post_id: Uuid,
         db_pool: &DbPool
-    ) -> Result<Uuid, String> {
+    ) -> Result<QueryDeleteResponse, String> {
 
         let post = query!(
             r#"
@@ -173,7 +173,12 @@ impl PostQuery{
         .await;
     
         match result {
-            Ok(_) => Ok(post_id),
+            Ok(_) => Ok(
+                QueryDeleteResponse{
+                    post_id,
+                    user_id
+                }
+            ),
             Err(error) => Err(format!("Failed to delete post: {}", error)),
         }
     }

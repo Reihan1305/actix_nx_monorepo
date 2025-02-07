@@ -17,5 +17,8 @@ pub struct PostResponse{
     pub username: String
 }
 
-// #[derive(Deserialize,Serialize)]
-// pub 
+#[derive(Deserialize)]
+pub struct Pagination {
+    pub limits: Option<usize>,
+    pub page: Option<usize>,
+}

@@ -21,8 +21,6 @@ impl ResponseError for UnauthorizedError {
             .json(json!({"error": "Unauthorized", "message": self.to_string()}))
     }
 }
-
-// ✅ Middleware Factory Struct
 pub struct RefreshTokenMW;
 
 impl<S, B> Transform<S, ServiceRequest> for RefreshTokenMW
@@ -31,21 +29,19 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>; // Jenis response middleware
-    type Transform = RefreshTokenMiddleware<S>; // Middleware yang dibuat
-    type Error = Error; // Jenis error yang dihasilkan
-    type InitError = (); // Tidak ada error saat inisialisasi
-    type Future = Ready<Result<Self::Transform, Self::InitError>>; // Future yang langsung siap
+    type Response = ServiceResponse<B>;
+    type Transform = RefreshTokenMiddleware<S>;
+    type Error = Error; 
+    type InitError = (); 
+    type Future = Ready<Result<Self::Transform, Self::InitError>>; 
 
     fn new_transform(&self, service: S) -> Self::Future {
-        // ✅ Factory untuk membuat middleware baru
         ok(RefreshTokenMiddleware { service })
     }
 }
 
-// ✅ Middleware Struct
 pub struct RefreshTokenMiddleware<S> {
-    service: S, // Service yang di-wrap oleh middleware
+    service: S,
 }
 
 impl<S, B> Service<ServiceRequest> for RefreshTokenMiddleware<S>
@@ -54,23 +50,22 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>; // Response yang dikembalikan oleh middleware
-    type Error = Error; // Jenis error yang bisa terjadi
-    type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>; // Future untuk response
+    type Response = ServiceResponse<B>; 
+    type Error = Error; 
+    type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>; 
 
-    forward_ready!(service); // Meneruskan status ready ke service yang di-wrap
+    forward_ready!(service);    
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         
         let refresh_token: Option<&HeaderValue> = req.headers().get("refresh-token");
 
         if let Some(token) = refresh_token {
-            // ✅ Konversi HeaderValue ke string
+          
             if let Ok(token_str) = token.to_str() {
-                // ✅ Menyimpan token ke dalam request extension agar bisa diakses di handler
+                
                 req.extensions_mut().insert(token_str.to_string());
 
-                // ✅ Memproses request lebih lanjut dengan middleware
                 let fut = self.service.call(req);
                 return Box::pin(async move {
                     let res = fut.await?;
@@ -79,7 +74,6 @@ where
             }
         }
 
-        // ✅ Jika token tidak ditemukan atau tidak valid, kembalikan error Unauthorized
         Box::pin(async {Err(UnauthorizedError.into())})
 }
 

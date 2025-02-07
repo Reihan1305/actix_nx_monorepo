@@ -26,6 +26,7 @@ message GetAllPostRequest{
 message DeleteResponse{
     string post_id = 1;
     string message = 2;
+    string user_id = 3;
 };
 
 message PostIdRequest{

@@ -166,9 +166,10 @@ impl ProtectedPost for AuthPostService{
         
 
         match PostQuery::delete_post(user.id, data.post_id.parse::<Uuid>().unwrap(), &self.dbpool).await{
-            Ok(post_id)=>{
+            Ok(delete_response)=>{
                 let response: DeleteResponse = DeleteResponse{
-                    post_id: String::from(post_id),
+                    post_id: String::from(delete_response.post_id),
+                    user_id: String::from(delete_response.user_id),
                     message: String::from("delete post successfully")
                 };
                 Ok(Response::new(response))

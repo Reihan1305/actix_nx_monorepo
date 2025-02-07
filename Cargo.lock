@@ -2865,6 +2865,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "posts_consumer"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "rdkafka",
+ "tokio",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

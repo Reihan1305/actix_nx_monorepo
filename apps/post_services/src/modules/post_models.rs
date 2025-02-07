@@ -28,3 +28,8 @@ pub struct UserPayload {
     pub username: String,
     pub email: String
 }
+
+pub struct QueryDeleteResponse{
+    pub post_id: Uuid,
+    pub user_id: Uuid
+}
