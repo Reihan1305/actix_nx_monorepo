@@ -5,7 +5,7 @@ use actix_web::{
 };
 use env_var::GRP_CURL;
 use log::info;
-use modules::post_handler::protected_post_config;
+use modules::post_handler::{post_config, protected_post_config};
 use serde_json::json;
 use dotenv::dotenv;
 use env_logger;
@@ -52,6 +52,7 @@ async fn main() -> std::io::Result<()> {
                 scope("/api")
                     .service(api_health_check)
                     .configure(protected_post_config)
+                    .configure(post_config)
             )
     })
     .bind(("0.0.0.0", 8000))?
