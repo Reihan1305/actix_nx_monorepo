@@ -8,7 +8,6 @@ use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
 use crate::proto::{
     post_server::Post, protected_post_server::ProtectedPost, CreatePostRequest, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostResponse, UpdatePostRequest
 };
-#[derive(Debug)]
 
 pub struct PostService{
     dbpool: DbPool

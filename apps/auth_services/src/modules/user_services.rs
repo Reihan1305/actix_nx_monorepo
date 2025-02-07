@@ -124,6 +124,9 @@ impl UserServices {
         let mut conn = redis_pool.get().map_err(|e| e.to_string())?;
 
         let set_data: Result<String, RedisError> = conn.set(&redis_key, token.clone());
+
+        let ttl = 12000;
+        let _ = conn.expire::<String,String>(redis_key, ttl);
         match set_data {
             Ok(data)=>{
                 info!("data inserted: {}",data);

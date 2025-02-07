@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package post;
+
+service Post{
+    rpc get_post_by_id(PostIdRequest) returns (PostResponse){}
+    rpc get_all_post (GetAllPostRequest) returns (PostListResponse){}
+};
+
+service ProtectedPost{
+    rpc create_post(CreatePostRequest) returns (PostResponse){}
+    rpc update_post(UpdatePostRequest) returns (PostResponse){}
+    rpc delete_post(PostIdRequest) returns (DeleteResponse){}
+}
+
+message CreatePostRequest{
+    string title = 1;
+    string content = 2;
+}
+
+message GetAllPostRequest{
+    int64 page = 1;
+    int64 limits = 2;
+};
+
+message DeleteResponse{
+    string post_id = 1;
+    string message = 2;
+};
+
+message PostIdRequest{
+    string post_id = 1;
+};
+
+message UpdatePostRequest{
+    string post_id = 1;     
+    string title = 4;
+    string content = 5;
+}
+
+message PostResponse{
+    string id = 1;     
+    string user_id = 2;
+    string username = 3;
+    string title = 4;
+    string content = 5;
+}   ;
+
+message PostListResponse {
+    repeated PostResponse posts = 1; // Ditambahkan untuk mengembalikan daftar post
+  }
+  
