@@ -3,7 +3,7 @@ use actix_web::{
     web::{scope, Data},
     App, HttpResponse, HttpServer, Responder
 };
-use env_var::GRP_CURL;
+use env_var::{GRP_CURL, KAFKA_HOST};
 use log::info;
 use modules::post_handler::{post_config, protected_post_config};
 use serde_json::json;
@@ -12,7 +12,7 @@ use env_logger;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
-
+use kafka_libs::{Producer,configure_kafka};
 mod env_var;
 mod modules;
 
@@ -25,6 +25,7 @@ pub mod proto {
 pub struct AppState {
     post_client: Arc<Mutex<PostClient<Channel>>>,
     protected_post_client: Arc<Mutex<ProtectedPostClient<Channel>>>,
+    kafka_producer: Producer
 }
 
 #[actix_web::main]
@@ -37,9 +38,19 @@ async fn main() -> std::io::Result<()> {
     let post_client = PostClient::connect(grpc_url.clone()).await.expect("Failed to connect to PostClient");
     let protected_post_client = ProtectedPostClient::connect(grpc_url.clone()).await.expect("Failed to connect to ProtectedPostClient");
 
+    let kafka_url = KAFKA_HOST.clone();
+    let kafka_config = match configure_kafka(kafka_url).await{
+        Ok(kafka)=> kafka,
+        Err(error)=>{
+            log::error!("kafka error: {}",error);
+            std::process::exit(1)
+        }
+    };
+
     let state = Data::new(AppState {
         post_client: Arc::new(Mutex::new(post_client)),
         protected_post_client: Arc::new(Mutex::new(protected_post_client)),
+        kafka_producer:Arc::new(Mutex::new(kafka_config))
     });
 
     info!("🚀 Starting server on http://0.0.0.0:8000");

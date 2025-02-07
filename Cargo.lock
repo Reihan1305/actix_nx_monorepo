@@ -2823,6 +2823,7 @@ dependencies = [
  "env_logger",
  "futures",
  "jsonwebtoken",
+ "kafka_libs",
  "lapin",
  "lazy_static",
  "log",

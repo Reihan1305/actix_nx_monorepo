@@ -1,12 +1,41 @@
 use actix_web::{
     delete, get, patch, post, web::{scope, Data, Json, Path, Query, ServiceConfig}, HttpResponse, Responder
 };
+use kafka_libs::{send_message, Producer};
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
     modules::post_model::{CreatePostRequest, PostResponse}, proto, AppState
 };
+
+pub async fn send_event<T>(
+    producer: &Producer,
+    post_id: Uuid,
+    user_id: Uuid,
+    message: T,
+) -> Result<(), HttpResponse>
+where
+    T: Serialize,
+{
+    let key = format!("{}:{}", user_id, post_id);
+    let topic = "post";
+
+    // Serialize message ke JSON
+    let event_message = match serde_json::to_string(&message) {
+        Ok(json) => json,
+        Err(_) => return Err(HttpResponse::InternalServerError().json("Failed to serialize message")),
+    };
+
+    let producer_guard = producer.lock().await;
+    let producer_ref = &*producer_guard;
+
+    // Kirim pesan ke Kafka
+    match send_message(producer_ref, topic, &key, &event_message).await {
+        Ok(_) => Ok(()),
+        Err(_) => Err(HttpResponse::InternalServerError().json("Failed to send message to Kafka")),
+    }
+}
 
 #[post("/create_post")]
 pub async fn create_post(
@@ -19,17 +48,19 @@ pub async fn create_post(
             content: req.content,  
     };
 
+    
     let request = tonic::Request::new(request_data);
-
+    
     let response = {
         let mut client = data.protected_post_client.lock().await;
         client.create_post(request).await
     };
 
+
+
     match response {
         Ok(message) => {
             let message = message.into_inner();
-            println!("ini message: {:?}",message);
             let response = PostResponse{
                 id: message.id.parse::<Uuid>().unwrap(),
                 title: message.title,
@@ -37,6 +68,7 @@ pub async fn create_post(
                 user_id:message.user_id.parse::<Uuid>().unwrap(),
                 username:message.username
             };
+            let _ = send_event(&data.kafka_producer,response.id , response.user_id, &response).await;
     
             HttpResponse::Created().json(json!({
                 "message": "post created",
@@ -78,7 +110,6 @@ pub async fn update_post(
     match response {
         Ok(message) => {
             let message = message.into_inner();
-            println!("ini message: {:?}",message);
             let response = PostResponse{
                 id: message.id.parse::<Uuid>().unwrap(),
                 title: message.title,
@@ -123,7 +154,6 @@ pub async fn delete_post(
     match response {
         Ok(message) => {
             let message = message.into_inner();
-            println!("ini message: {:?}",message);
             let response_message = format!("post: {} successfully deleted",message.post_id);
     
             HttpResponse::Created().json(json!({
@@ -150,7 +180,7 @@ pub fn protected_post_config(config: &mut ServiceConfig) {
     );
 }
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct Pagination {

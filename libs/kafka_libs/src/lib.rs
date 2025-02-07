@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 pub type Producer = Arc<Mutex<BaseProducer>>;
 
-pub async fn send_message(producer:BaseProducer, topic: &str, key: &str, message: &str) -> Result<(), KafkaError> {
-    let producer: BaseProducer = producer;
+pub async fn send_message(producer:&BaseProducer, topic: &str, key: &str, message: &str) -> Result<(), KafkaError> {
+    let producer: &BaseProducer = producer;
     
     let record: BaseRecord<'_, [u8], [u8]> = rdkafka::producer::BaseRecord::to(topic)
         .key(key.as_bytes())
