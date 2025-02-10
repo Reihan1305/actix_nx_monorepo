@@ -3,7 +3,7 @@ use actix_web::{
     web::{scope, Data},
     App, HttpResponse, HttpServer, Responder
 };
-use env_var::{GRP_CURL, KAFKA_HOST};
+use config_type::PostGatewayAppConfig;
 use log::info;
 use modules::post::handler::{post_config, protected_post_config};
 use serde_json::json;
@@ -13,8 +13,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
 use kafka_libs::{Producer,configure_kafka};
-mod env_var;
+mod config_type;
 mod modules;
+
 
 use proto_libs::post_proto::{post_client::PostClient, protected_post_client::ProtectedPostClient};
 
@@ -31,12 +32,15 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::init();
 
-    let grpc_url = GRP_CURL.clone();
+    let config:PostGatewayAppConfig = config_libs::libs_config("config/post_gateway_config", "POST-GATEWAY");
+
+
+    let grpc_url = config.grpc.url;
 
     let post_client = PostClient::connect(grpc_url.clone()).await.expect("Failed to connect to PostClient");
     let protected_post_client = ProtectedPostClient::connect(grpc_url.clone()).await.expect("Failed to connect to ProtectedPostClient");
 
-    let kafka_url = KAFKA_HOST.clone();
+    let kafka_url = config.kafka.host;
     let kafka_config = match configure_kafka(kafka_url).await{
         Ok(kafka)=> kafka,
         Err(error)=>{

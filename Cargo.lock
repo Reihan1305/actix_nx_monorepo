@@ -2989,6 +2989,7 @@ dependencies = [
  "actix-web",
  "argon2",
  "chrono",
+ "config_libs",
  "dotenv",
  "env_logger",
  "futures",

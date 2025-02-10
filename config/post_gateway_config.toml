@@ -1,0 +1,11 @@
+[apps]
+port = 8080
+
+[logger]
+log = "info"
+
+[kafka]
+host = "localhost:9092"
+
+[grpc]
+url = "http://[::1]:50501"
