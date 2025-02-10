@@ -16,10 +16,8 @@ use kafka_libs::{Producer,configure_kafka};
 mod env_var;
 mod modules;
 
-use proto::{post_client::PostClient, protected_post_client::ProtectedPostClient};
-pub mod proto {
-    tonic::include_proto!("post");
-}
+use proto_libs::post_proto::{post_client::PostClient, protected_post_client::ProtectedPostClient};
+
 
 // Define AppState with both PostClient and ProtectedPostClient
 pub struct AppState {

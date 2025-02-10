@@ -11,6 +11,7 @@ members = [
 	'libs/pgsql_libs',
 	'libs/jwt_libs',
 	'apps/posts_consumer',
+	'libs/proto_libs',
 ]
 
 [profile.release]

@@ -2828,6 +2828,7 @@ dependencies = [
  "lazy_static",
  "log",
  "prost",
+ "proto_libs",
  "r2d2_redis",
  "redis 0.28.2",
  "regex",
@@ -2836,7 +2837,6 @@ dependencies = [
  "sqlx",
  "tokio",
  "tonic",
- "tonic-build",
  "tonic-reflection",
  "tonic-web",
  "tower-http 0.6.2",
@@ -2852,13 +2852,13 @@ dependencies = [
  "lapin",
  "pgsql_libs",
  "prost",
+ "proto_libs",
  "r2d2_redis",
  "redis 0.28.2",
  "redis_libs",
  "sqlx",
  "tokio",
  "tonic",
- "tonic-build",
  "tonic-reflection",
  "tonic-web",
  "tower-http 0.6.2",
@@ -2988,6 +2988,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc2f1e56baa61e93533aebc21af4d2134b70f66275e0fcdf3cbe43d77ff7e8fc"
 dependencies = [
  "prost",
+]
+
+[[package]]
+name = "proto_libs"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "tonic-reflection",
 ]
 
 [[package]]

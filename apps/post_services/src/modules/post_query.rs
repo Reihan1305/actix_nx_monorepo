@@ -2,7 +2,7 @@ use pgsql_libs::DbPool;
 use sqlx::{query, query_as, types::Uuid};
 use tonic::Status;
 
-use crate::proto::PostResponse;
+use proto_libs::post_proto::PostResponse;
 
 use super::post_models::{CreatePost, PostPayload, QueryDeleteResponse, UpdatePost, UserPayload};
 pub struct PostQuery;

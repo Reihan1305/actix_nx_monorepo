@@ -2,18 +2,18 @@ use std::{env::var, error::Error, sync::Arc};
 
 use modules::{post_middleware::AuthMiddleware, post_services::{AuthPostService, PostService}};
 use pgsql_libs::{create_db_pool, DbPool};
-use proto::{post_server::PostServer, protected_post_server::ProtectedPostServer};
+use proto_libs::post_proto::{post_server::PostServer, protected_post_server::ProtectedPostServer};
 use redis_libs::{redis_connect, RedisPool};
 use tonic::{transport::Server, Request};
 
 pub mod modules;
 
-pub mod proto {
-    tonic::include_proto!("post");
+// pub mod proto {
+//     tonic::include_proto!("post");
 
-    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
-        tonic::include_file_descriptor_set!("post_descriptor");
-}
+//     pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
+//         tonic::include_file_descriptor_set!("post_descriptor");
+// }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let interceptor = move |req: Request<()>| auth_middleware.auth_check(req);
 
     let services = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(proto_libs::POST_FILE_DESCRIPTOR_SET)
         .build_v1()?;
 
     Server::builder()

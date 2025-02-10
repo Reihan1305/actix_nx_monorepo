@@ -5,7 +5,7 @@ use sqlx::types::Uuid;
 use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
 use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
-use crate::proto::{
+use proto_libs::post_proto::{
     post_server::Post, protected_post_server::ProtectedPost, CreatePostRequest, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostResponse, UpdatePostRequest
 };
 

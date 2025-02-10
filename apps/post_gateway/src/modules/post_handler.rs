@@ -4,9 +4,10 @@ use actix_web::{
 use kafka_libs::{send_message, Producer};
 use serde_json::json;
 use uuid::Uuid;
+use proto_libs::post_proto;
 
 use crate::{
-    modules::post_model::{CreatePostRequest, Pagination, PostResponse}, proto, AppState
+    modules::post_model::{CreatePostRequest, Pagination, PostResponse}, AppState
 };
 
 pub async fn send_event(
@@ -34,7 +35,7 @@ pub async fn create_post(
     content: Json<CreatePostRequest>
 ) -> impl Responder {
     let req = content.into_inner();
-    let request_data = proto::CreatePostRequest{
+    let request_data = post_proto::CreatePostRequest{
             title: req.title,
             content: req.content,  
     };
@@ -86,7 +87,7 @@ pub async fn update_post(
     let post_id = path.into_inner();
 
     let req = content.into_inner();
-    let request_data = proto::UpdatePostRequest{
+    let request_data = post_proto::UpdatePostRequest{
             post_id: post_id.to_string(),
             title: req.title,
             content: req.content,  
@@ -135,7 +136,7 @@ pub async fn delete_post(
 ) -> impl Responder {
     let post_id: Uuid = path.into_inner();
 
-    let request_data = proto::PostIdRequest{
+    let request_data = post_proto::PostIdRequest{
             post_id: post_id.to_string()
     };
 
@@ -193,7 +194,7 @@ pub async fn get_all_post(
     println!("Fetching posts with limits: {}, page: {}", limits, page);
 
     // Simulasi query ke database atau panggilan ke gRPC
-    let request_data = crate::proto::GetAllPostRequest { limits: limits as i64, page: page as i64 };
+    let request_data = post_proto::GetAllPostRequest { limits: limits as i64, page: page as i64 };
 
 
     let response = {
@@ -240,7 +241,7 @@ pub async fn get_post_by_id(
     println!("Fetching post with ID: {}", post_id);
 
     // Membuat request ke gRPC
-    let request_data = crate::proto::PostIdRequest {
+    let request_data = post_proto::PostIdRequest {
         post_id: post_id.to_string(),
     };
 

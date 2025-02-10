@@ -9,7 +9,7 @@ use crate::{middlewares::{access_token_middleware::AccessTokenMW, refresh_token_
 use super::{user_models::{LoginData, RegisterData}, user_services::UserServices};
 
 // Validation function
-fn json_validate<T:Validate>(data: Json<T>) -> Result<T, HttpResponse> {
+fn json_validate<T:Validate>(data: Json<T>) -> Result<T, HttpResponse>{
     let data = data.into_inner();
     
     let mut error_map: HashMap<String,Cow<'static,str>> = HashMap::new();
