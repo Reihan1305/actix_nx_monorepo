@@ -6,7 +6,7 @@ use std::{borrow::Cow, collections::HashMap, time::Instant};
 use jwt_libs::types::AccessToken;
 use crate::{middlewares::{access_token_middleware::AccessTokenMW, refresh_token_middleware::RefreshTokenMW},AppState};
 
-use super::{user_models::{LoginData, RegisterData}, user_services::UserServices};
+use super::{model::{LoginData, RegisterData}, service::UserServices};
 
 // Validation function
 fn json_validate<T:Validate>(data: Json<T>) -> Result<T, HttpResponse>{

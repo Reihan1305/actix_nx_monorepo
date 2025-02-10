@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use jwt_libs::types::AccessToken;
 
-use super::user_models::{LoginQueryPayload, RegisterData, RegisterPayload};
+use super::model::{LoginQueryPayload, RegisterData, RegisterPayload};
 
 
 pub struct UserQuery {}

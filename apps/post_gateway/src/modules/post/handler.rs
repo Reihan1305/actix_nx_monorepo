@@ -7,7 +7,7 @@ use uuid::Uuid;
 use proto_libs::post_proto;
 
 use crate::{
-    modules::post_model::{CreatePostRequest, Pagination, PostResponse}, AppState
+    modules::post::model::{CreatePostRequest, Pagination, PostResponse}, AppState
 };
 
 pub async fn send_event(

@@ -5,7 +5,7 @@ use actix_web::{
 };
 use env_var::{GRP_CURL, KAFKA_HOST};
 use log::info;
-use modules::post_handler::{post_config, protected_post_config};
+use modules::post::handler::{post_config, protected_post_config};
 use serde_json::json;
 use dotenv::dotenv;
 use env_logger;

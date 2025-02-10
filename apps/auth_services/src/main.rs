@@ -4,7 +4,7 @@ use actix_web::{
 };
 use lapin::{options::{BasicPublishOptions, QueueDeclareOptions}, types::FieldTable, BasicProperties};
 use log::{error, info};
-use modules::user_handlers::{auth_config, token_config, user_config};
+use modules::user::handler::{auth_config, token_config, user_config};
 use pgsql_libs::{create_db_pool, DbPool};
 use r2d2_redis::redis::Commands;
 use serde_json::json;

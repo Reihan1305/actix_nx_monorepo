@@ -4,7 +4,7 @@ use jwt_libs::types::AccessToken;
 use sqlx::types::Uuid;
 use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
-use super::{post_models::{CreatePost, UpdatePost}, post_query::PostQuery};
+use super::{model::{CreatePost, UpdatePost}, query::PostQuery};
 use proto_libs::post_proto::{
     post_server::Post, protected_post_server::ProtectedPost, CreatePostRequest, DeleteResponse, GetAllPostRequest, PostIdRequest, PostListResponse, PostResponse, UpdatePostRequest
 };

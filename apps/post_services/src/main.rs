@@ -1,6 +1,6 @@
 use std::{env::var, error::Error, sync::Arc};
 
-use modules::{post_middleware::AuthMiddleware, post_services::{AuthPostService, PostService}};
+use modules::{post::middleware::AuthMiddleware, post::handler::{AuthPostService, PostService}};
 use pgsql_libs::{create_db_pool, DbPool};
 use proto_libs::post_proto::{post_server::PostServer, protected_post_server::ProtectedPostServer};
 use redis_libs::{redis_connect, RedisPool};
