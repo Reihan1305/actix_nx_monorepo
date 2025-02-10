@@ -12,6 +12,7 @@ members = [
 	'libs/jwt_libs',
 	'apps/posts_consumer',
 	'libs/proto_libs',
+	'libs/config_libs',
 ]
 
 [profile.release]

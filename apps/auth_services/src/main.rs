@@ -2,6 +2,7 @@
 use actix_web::{
     get, middleware::Logger, web::{self, scope}, App, HttpResponse, HttpServer, Responder
 };
+use config_type::UserAppConfig;
 use lapin::{options::{BasicPublishOptions, QueueDeclareOptions}, types::FieldTable, BasicProperties};
 use log::{error, info};
 use modules::user::handler::{auth_config, token_config, user_config};
@@ -13,14 +14,16 @@ use env_logger;
 use redis_libs::{RedisPool,redis_connect};
 mod middlewares;
 mod modules;
-mod env_var;
-use env_var::{DB_URL, RABBIT_URL, REDIS_HOSTNAME};
+mod config_type;
+// use config_type::{DB_URL, RABBIT_URL, REDIS_HOSTNAME};
 use rabbitmq_libs::{RabbitMqPool,rabbit_connect};
 pub struct AppState {
     db: DbPool,
     redis: RedisPool,
     rabbit: RabbitMqPool
 }
+
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -29,7 +32,9 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting server...");
 
-    let db_url: String = DB_URL.clone();
+    let config: UserAppConfig =config_libs::libs_config("config/user_config","USER");
+    
+    let db_url: String = config.database.url;
     let db_pool: DbPool = match create_db_pool(db_url, 5, 50).await {
         Ok(pool) => {
             info!("✅ Database connection success");
@@ -40,11 +45,11 @@ async fn main() -> std::io::Result<()> {
             std::process::exit(1);
         }
     };
-    let redis_host = REDIS_HOSTNAME.clone();
+    let redis_host = config.redis.host.clone();
 
     let redis_pool: RedisPool = redis_connect(redis_host,None);
 
-    let rabbit_url: String = RABBIT_URL.clone();
+    let rabbit_url: String = config.rabbitmq.url.clone();
 
     let rabbit_pool: RabbitMqPool = rabbit_connect(rabbit_url);
 
