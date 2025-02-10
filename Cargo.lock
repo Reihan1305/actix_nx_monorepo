@@ -3019,6 +3019,7 @@ dependencies = [
 name = "post_services"
 version = "0.1.0"
 dependencies = [
+ "config_libs",
  "jwt_libs",
  "lapin",
  "pgsql_libs",
@@ -3027,6 +3028,7 @@ dependencies = [
  "r2d2_redis",
  "redis 0.28.2",
  "redis_libs",
+ "serde",
  "sqlx",
  "tokio",
  "tonic",

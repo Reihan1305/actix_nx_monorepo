@@ -1,5 +1,7 @@
-use std::{env::var, error::Error, sync::Arc};
+use std::{error::Error, sync::Arc};
 
+use config_libs::libs_config;
+use config_type::PostAppConfig;
 use modules::{post::middleware::AuthMiddleware, post::handler::{AuthPostService, PostService}};
 use pgsql_libs::{create_db_pool, DbPool};
 use proto_libs::post_proto::{post_server::PostServer, protected_post_server::ProtectedPostServer};
@@ -7,7 +9,7 @@ use redis_libs::{redis_connect, RedisPool};
 use tonic::{transport::Server, Request};
 
 pub mod modules;
-
+pub mod config_type;
 // pub mod proto {
 //     tonic::include_proto!("post");
 
@@ -19,7 +21,9 @@ pub mod modules;
 async fn main() -> Result<(), Box<dyn Error>> {
     let address = "[::1]:50501".parse()?;
 
-    let db_url = var("DATABASE_URL").expect("invalid db url");
+    let config: PostAppConfig = libs_config("config/post_config", "POST");
+
+    let db_url = config.database.url;
     let db_pool: DbPool = match create_db_pool(db_url, 5, 50).await {
         Ok(pool) => pool,
         Err(error) => {
@@ -28,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    let redis_host = var("REDIS_HOST").expect("invalid redis host");
+    let redis_host = config.redis.host;
     let redis_connect: RedisPool = redis_connect(redis_host, None);
 
     let redis_arc = Arc::new(redis_connect);
