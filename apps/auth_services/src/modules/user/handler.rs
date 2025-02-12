@@ -11,18 +11,14 @@ use logger_libs::{debug_logger, info_logger, warning_logger};
 use super::{model::{LoginData, RegisterData}, service::UserServices};
 
 // Validation function
-fn json_validate<T:Validate>(
-    json_data: Json<T>,
-    log_id: &str,
-    handler:&str
+fn json_validate<T>(
+    json_data: Json<T>
 ) -> Result<T, HttpResponse>
 where 
-    T: Clone + Serialize + Debug
+    T: Clone + Serialize + Debug + Validate
 {
     let data = json_data.into_inner();
-    let method_name = "Validate";
     let mut error_map: HashMap<String,Cow<'static,str>> = HashMap::new();
-
 
     if let Err(errors) = data.validate() {
         for (field, error) in errors.field_errors() {
@@ -35,14 +31,12 @@ where
             }
         }
 
-        warning_logger(&log_id, handler,method_name, &format!("{:?}",error_map));
         return Err(HttpResponse::BadRequest().json(json!({
             "status": "failed",
             "message": error_map
         })));
     }
 
-    info_logger(&log_id, handler, method_name);
     Ok(data)
 }
 
@@ -52,18 +46,20 @@ async fn register_handlers(
     app_data: Data<AppState>
 ) -> impl Responder {
     let start = Instant::now();
-    info!("Registration process started at: {:?}", start);
+    let log_id = format!("{}-{}",chrono::Utc::now(),uuid::Uuid::new_v4());
     
-    let log_id = format!("{}-{}",uuid::Uuid::new_v4(),register_body.username);
-    // Validate incoming JSON data
     let req_log = register_body.clone();
     let register_data = match json_validate(
-        register_body,
-        &log_id,
-        "register"
+        register_body
     ) {
-        Ok(validated_data) => validated_data,
-        Err(err_response) => return err_response,
+        Ok(validated_data) => {
+            info_logger(&log_id, "register", "Validate");
+            validated_data}
+            ,
+        Err(err_response) => {
+            warning_logger(&log_id, "register", "Validate", &format!("{:?}",err_response.body()));
+            return err_response
+        }
     };
 
     // Attempt to register user
@@ -73,9 +69,8 @@ async fn register_handlers(
         &app_data.db,
         &app_data.rabbit).await {
         Ok(user_payload) => {
-            debug_logger(&log_id, "register", "Service", &req_log, &user_payload);
-            
-            info!("User registered successfully with ID: {}", user_payload.id);
+            debug_logger(&log_id, "register", "Services", &req_log, &user_payload);
+            info_logger(&log_id, "register", "Services");
             let end:Instant = Instant::now();
             info!("success response take: {:?}",end - start);
             HttpResponse::Created().json(json!({
@@ -85,6 +80,7 @@ async fn register_handlers(
             }))
         },
         Err(error) => {
+            warning_logger(&log_id, "register", "Services", &error);
             HttpResponse::BadRequest().json(json!({
                 "status": "failed",
                 "message": format!("Server error: {}", error)
@@ -99,13 +95,14 @@ async fn login_handlers(
     app_data: Data<AppState>
 ) -> impl Responder{
     let start = Instant::now();
+    let log_id = format!("{}-{}",chrono::Utc::now(),uuid::Uuid::new_v4());
 
-    info!("login proccess started: {:?}",start);
-    
     let login_data = login_body.into_inner();
 
-    match UserServices::login(login_data, &app_data.db).await{
+    match UserServices::login(&log_id,login_data.clone(), &app_data.db, &app_data.redis).await{
         Ok(payload)=>{
+            debug_logger(&log_id, "login", "Services", &login_data, &payload);
+            info_logger(&log_id, "login", "Services");
             let end = Instant::now();
             info!("login success, response time: {:?}", end - start);
             HttpResponse::Ok().json(json!({
@@ -116,6 +113,7 @@ async fn login_handlers(
         },
         Err(errors)=>{
             let end = Instant::now();
+            warning_logger(&log_id, "login", "Services", &errors);
             error!("server error: {}, response time: {:?}",errors, end - start);
             HttpResponse::BadGateway().json(json!({
                 "status":"failed",

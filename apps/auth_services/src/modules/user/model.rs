@@ -19,14 +19,14 @@ pub struct RegisterPayload{
     pub username: String,
 }
 
-#[derive(Deserialize,Serialize)]
+#[derive(Debug,Deserialize,Serialize,Clone)]
 pub struct LoginData{
     pub email: Option<String>,
     pub username: Option<String>,
     pub password: String
 }
 
-#[derive(Deserialize,Serialize)]
+#[derive(Debug,Deserialize,Serialize)]
 pub struct LoginQueryPayload{
     pub id: Uuid,
     pub email: String,
@@ -34,7 +34,7 @@ pub struct LoginQueryPayload{
     pub password: String
 }
 
-#[derive(Deserialize,Serialize)]
+#[derive(Debug,Deserialize,Serialize)]
 pub struct LoginPayload{
     pub id: Uuid,
     pub email: String,

@@ -2,7 +2,7 @@
 use argon2::{password_hash::{rand_core::OsRng, SaltString}, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use lapin::{options::BasicPublishOptions, publisher_confirm::PublisherConfirm, types::FieldTable, BasicProperties};
 use log::info;
-use logger_libs::{error_logger, info_logger, warning_logger};
+use logger_libs::{debug_logger, error_logger, info_logger, warning_logger};
 use pgsql_libs::DbPool;
 use r2d2_redis::redis::{Commands, RedisError};
 use rabbitmq_libs::RabbitMqPool;
@@ -19,12 +19,19 @@ pub struct UserServices{}
 
 impl UserServices {
     pub async fn login(
+        log_id: &str,
         data: LoginData,
-        db_pool: &DbPool
+        db_pool: &DbPool,
+        redis_pool: &RedisPool
     ) -> Result<LoginPayload, String> {
         // Cek data login berdasarkan email dan username
+        let handler_name = "loginServices";
+        let req_login = data.clone();
         let login_data = match UserQuery::login_query(data.email, data.username, db_pool).await {
-            Ok(login_data) => login_data,
+            Ok(login_data) => {
+                debug_logger(log_id, handler_name, "queryLogin", &req_login, &login_data);
+                login_data
+            },
             Err(error) => return Err(format!("Database error: {}", error)),
         };
     
@@ -32,26 +39,33 @@ impl UserServices {
     
         // Parse hash password yang disimpan di database
         let parsed_hash = match PasswordHash::new(&login_data.password) {
-            Ok(parsed_hash) => parsed_hash,
-            Err(_) => return Err("Error parsing stored password hash".to_string()),
+            Ok(parsed_hash) => {
+                parsed_hash
+            },
+            Err(_) => {
+                warning_logger(log_id, handler_name, "parsedHashing", "Error parsing stored password hash");
+                return Err("Error parsing stored password hash".to_string())
+            },
         };
     
         // Verifikasi password yang dimasukkan dengan yang ada di database
         if let Err(err) = argon2.verify_password(data.password.as_bytes(), &parsed_hash) {
             return Err(format!("Invalid password: {}", err));
         }
-    
+
         // Membuat data refresh token
         let refresh_token_data = RefreshToken {
             id: login_data.id,
         };
-    
+        
         // Generate refresh token
         match generate_refresh_token(refresh_token_data) {
             Ok(refresh_token) => {
+                info_logger(log_id, handler_name, "GenerateRefreshToken");
                 // Simpan refresh token di database
                 match UserQuery::create_refresh_token(&refresh_token, login_data.id, db_pool).await {
                     Ok(_) => {
+                        info_logger(log_id, handler_name, "SaveRefreshToken");
                         // Generate access token
                         let access_token_data = AccessToken {
                             id: login_data.id,
@@ -61,24 +75,37 @@ impl UserServices {
     
                         match generate_access_token(access_token_data) {
                             Ok(access_token) => {
+                            info_logger(log_id, handler_name, "CreateAccessToken");
                                 // Kembalikan LoginPayload yang berisi access token dan refresh token
                                 let payload = LoginPayload {
                                     id: login_data.id,
                                     email: login_data.email,
                                     username: login_data.username,
                                     access_token,
-                                    refresh_token,
+                                    refresh_token: refresh_token.clone(),
                                 };
-    
+
+                                let _ = Self::refresh_token(refresh_token, db_pool, redis_pool);
+
                                 Ok(payload)
                             }
-                            Err(error) => Err(format!("Error generating access token: {}", error)),
+                            Err(error) => {
+                            warning_logger(log_id, handler_name, "CreateAccessToken",&error);
+                                Err(format!("Error generating access token: {}", error))
+                            },
                         }
                     }
-                    Err(error) => Err(format!("Error saving refresh token to database: {}", error)),
+                    Err(error) => {
+                    warning_logger(log_id, handler_name, "SaveRefreshToken", &error);
+                        Err(format!("Error saving refresh token to database: {}", error))
+                    },
                 }
             }
-            Err(error) => Err(format!("Error generating refresh token: {}", error)),
+            Err(error) => {
+            warning_logger(log_id, handler_name, "GenerateRefreshToken",&error);
+
+                Err(format!("Error generating refresh token: {}", error))
+            },
         }
     }    
 
@@ -183,40 +210,41 @@ impl UserServices {
         db_pool: &DbPool,
         rabbit_pool: &RabbitMqPool,
     ) -> Result<RegisterPayload, String> {
+        let handler_name = "registerServices";
         let argon2 = Argon2::default();
         let salt: SaltString = SaltString::generate(&mut OsRng);
         let password_hash = match argon2.hash_password(data.password.as_bytes(), &salt) {
             Ok(hash) => {
-                info_logger(log_id, "register", "hash_password");
+                info_logger(log_id, handler_name, "hash_password");
                 hash.to_string()
             },
             Err(e) => {
-                warning_logger(log_id, "register", "Hash_password", &format!("{}",e));
+                warning_logger(log_id, handler_name, "Hash_password", &format!("{}",e));
                 return Err(format!("Password hash error: {}", e))
             }
         };
 
-        info_logger(log_id, "register", "hash_password");
+        info_logger(log_id, handler_name, "hash_password");
         data.password = password_hash;
 
         let conn = match rabbit_pool.get().await {
             Ok(conn) => {
-                info_logger(log_id, "register","Redis_connect");
+                info_logger(log_id, handler_name,"Redis_connect");
                 conn
             },
             Err(err) => {
-                error_logger(log_id, "register","Redis_connect",&format!("{}",err));
+                error_logger(log_id, handler_name,"Redis_connect",&format!("{}",err));
                 return Err(format!("RabbitMQ connection error: {}", err));
             }
         };
 
         let channel = match conn.create_channel().await {
             Ok(channel) => {
-                info_logger(log_id, "register", "Rabbit_connect");
+                info_logger(log_id, handler_name, "Rabbit_connect");
                 channel
             },
             Err(err) => {
-                error_logger(log_id, "register", "Rabbit_connect", &format!("{}",err));
+                error_logger(log_id, handler_name, "Rabbit_connect", &format!("{}",err));
                 return Err(format!("RabbitMQ channel error: {}", err));
             }
         };
@@ -229,7 +257,7 @@ impl UserServices {
             )
             .await
         {
-            error_logger(log_id, "register",  "Rabbit_queue_declare", &format!("{}",err));
+            error_logger(log_id, handler_name,  "Rabbit_queue_declare", &format!("{}",err));
             return Err(format!("RabbitMQ queue declare error: {}", err));
         }
 
@@ -252,11 +280,11 @@ impl UserServices {
             .await
         {
             Ok(confirm) => {
-                info_logger(log_id, "register","Rabbit_publish_confirm");
+                info_logger(log_id, handler_name,"Rabbit_publish_confirm");
                 confirm
             },
             Err(err) => {
-                error_logger(log_id, "register", "Rabbit_publish_confirm", &format!("{}",err));
+                error_logger(log_id, handler_name, "Rabbit_publish_confirm", &format!("{}",err));
                 return Err(format!("RabbitMQ publish error: {}", err));
             }
         };
@@ -265,12 +293,12 @@ impl UserServices {
 
         match UserQuery::create_user(data, db_pool).await {
             Ok(register_payload) => {
-                info_logger(log_id, "register", "Create_user");
+                info_logger(log_id, handler_name, "Create_user");
 
                 Ok(register_payload)
             },
             Err(error) => {
-                error_logger(log_id, "register", "Create_user", &format!("{}",error));
+                error_logger(log_id, handler_name, "Create_user", &format!("{}",error));
                 Err(format!("Database error: {}", error))
         },
         }

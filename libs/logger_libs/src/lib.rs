@@ -3,12 +3,12 @@ use log::{debug, error, info, warn};
 use serde_json::{Value, json};
 use serde::Serialize;
 
-pub fn debug_logger<T, B>(log_id: &str, handler: &str,method: &str, request: &T, response: &B)
-where
-    T: Serialize + Debug,
-    B: Serialize + Debug,
+pub fn json_conferter<T>(data:T)
+->Option<serde_json::Map<String, Value>>
+where 
+    T:Serialize
 {
-    let mut request_json = serde_json::to_value(request).unwrap_or(json!({}));
+    let mut request_json = serde_json::to_value(data).unwrap_or(json!({}));
 
     if let Some(obj) = request_json.as_object_mut() {
         if let Some(username) = obj.get_mut("username") {
@@ -22,14 +22,25 @@ where
         }
     }
 
-    let request=  request_json.as_object();
+    request_json.as_object().cloned()
+    }
+
+pub fn debug_logger<T, B>(log_id: &str, handler: &str,method: &str, request: &T, response: &B)
+where
+    T: Serialize + Debug,
+    B: Serialize + Debug,
+{
+    let request = json_conferter(request);
+
+    let response=  json_conferter(response);
+
     debug!(
         "[ {} ] {}.{} Request: {} | Response: {}",
         log_id,
         handler,
         method,
         format!("{:?}", request.unwrap()),
-        format!("{:?}", response)
+        format!("{:?}", response.unwrap())
     );
 }
 

@@ -4,7 +4,8 @@ use actix_web::{
 };
 use config_type::UserAppConfig;
 use lapin::{options::{BasicPublishOptions, QueueDeclareOptions}, types::FieldTable, BasicProperties};
-use log::{debug, error, info, warn};
+use log::{error, info};
+use logger_libs::error_logger;
 use modules::user::handler::{auth_config, token_config, user_config};
 use pgsql_libs::{create_db_pool, DbPool};
 use r2d2_redis::redis::Commands;
@@ -29,7 +30,8 @@ pub struct AppState {
 async fn main() -> std::io::Result<()> {
     dotenv().ok(); 
     env_logger::init();
-
+    
+    let log_id = format!("{}",chrono::Utc::now());
     let config: UserAppConfig =config_libs::libs_config("config/user_config","USER");
     
     let db_url: String = config.database.url;
@@ -39,7 +41,7 @@ async fn main() -> std::io::Result<()> {
             pool
         }
         Err(err) => {
-            error!("❌ Database connection failed: {}", err);
+            error_logger(&log_id, "main", "DbPool", &format!("{:?}",err));
             std::process::exit(1);
         }
     };
