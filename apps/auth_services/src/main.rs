@@ -4,7 +4,7 @@ use actix_web::{
 };
 use config_type::UserAppConfig;
 use lapin::{options::{BasicPublishOptions, QueueDeclareOptions}, types::FieldTable, BasicProperties};
-use log::{error, info};
+use log::{debug, error, info, warn};
 use modules::user::handler::{auth_config, token_config, user_config};
 use pgsql_libs::{create_db_pool, DbPool};
 use r2d2_redis::redis::Commands;
@@ -29,8 +29,6 @@ pub struct AppState {
 async fn main() -> std::io::Result<()> {
     dotenv().ok(); 
     env_logger::init();
-
-    info!("Starting server...");
 
     let config: UserAppConfig =config_libs::libs_config("config/user_config","USER");
     

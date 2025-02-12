@@ -9,6 +9,7 @@ rabbitmq_libs ={ path = "../../libs/rabbitmq_libs"}
 jwt_libs = { path = "../../libs/jwt_libs"}
 pgsql_libs= { path = "../../libs/pgsql_libs"}
 config_libs ={ path = "../../libs/config_libs"}
+logger_libs ={ path = "../../libs/logger_libs"}
 log = "0.4"
 dotenv= "0.15"
 actix-cors = "0.7"                               

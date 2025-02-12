@@ -2,7 +2,7 @@ use serde::{Serialize,Deserialize};
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Validate)]
+#[derive(Debug,Serialize, Deserialize, Validate,Clone)]
 pub struct RegisterData{
     #[validate(email(message="invalid format"))]
     pub email: String,
@@ -12,7 +12,7 @@ pub struct RegisterData{
     pub password: String
 }
 
-#[derive(Deserialize,Serialize)]
+#[derive(Deserialize,Serialize,Debug)]
 pub struct RegisterPayload{
     pub id:Uuid,
     pub email: String,

@@ -1,6 +1,8 @@
+
 use argon2::{password_hash::{rand_core::OsRng, SaltString}, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use lapin::{options::BasicPublishOptions, publisher_confirm::PublisherConfirm, types::FieldTable, BasicProperties};
 use log::info;
+use logger_libs::{error_logger, info_logger, warning_logger};
 use pgsql_libs::DbPool;
 use r2d2_redis::redis::{Commands, RedisError};
 use rabbitmq_libs::RabbitMqPool;
@@ -176,6 +178,7 @@ impl UserServices {
 
     //register queue
     pub async fn register(
+        log_id: &str,
         mut data: RegisterData,
         db_pool: &DbPool,
         rabbit_pool: &RabbitMqPool,
@@ -183,24 +186,37 @@ impl UserServices {
         let argon2 = Argon2::default();
         let salt: SaltString = SaltString::generate(&mut OsRng);
         let password_hash = match argon2.hash_password(data.password.as_bytes(), &salt) {
-            Ok(hash) => hash.to_string(),
-            Err(e) => return Err(format!("Password hash error: {}", e)),
+            Ok(hash) => {
+                info_logger(log_id, "register", "hash_password");
+                hash.to_string()
+            },
+            Err(e) => {
+                warning_logger(log_id, "register", "Hash_password", &format!("{}",e));
+                return Err(format!("Password hash error: {}", e))
+            }
         };
 
+        info_logger(log_id, "register", "hash_password");
         data.password = password_hash;
 
         let conn = match rabbit_pool.get().await {
-            Ok(conn) => conn,
+            Ok(conn) => {
+                info_logger(log_id, "register","Redis_connect");
+                conn
+            },
             Err(err) => {
-                println!("❌ Cannot connect to RabbitMQ: {}", err);
+                error_logger(log_id, "register","Redis_connect",&format!("{}",err));
                 return Err(format!("RabbitMQ connection error: {}", err));
             }
         };
 
         let channel = match conn.create_channel().await {
-            Ok(channel) => channel,
+            Ok(channel) => {
+                info_logger(log_id, "register", "Rabbit_connect");
+                channel
+            },
             Err(err) => {
-                println!("❌ Failed to create RabbitMQ channel: {}", err);
+                error_logger(log_id, "register", "Rabbit_connect", &format!("{}",err));
                 return Err(format!("RabbitMQ channel error: {}", err));
             }
         };
@@ -213,7 +229,7 @@ impl UserServices {
             )
             .await
         {
-            println!("❌ Failed to declare queue: {}", err);
+            error_logger(log_id, "register",  "Rabbit_queue_declare", &format!("{}",err));
             return Err(format!("RabbitMQ queue declare error: {}", err));
         }
 
@@ -225,7 +241,7 @@ impl UserServices {
 
         let payload_bytes = payload.to_string().into_bytes();
 
-        let confirm: PublisherConfirm = match channel
+        let _: PublisherConfirm = match channel
             .basic_publish(
                 "",
                 "register_queue",
@@ -235,22 +251,28 @@ impl UserServices {
             )
             .await
         {
-            Ok(confirm) => confirm,
+            Ok(confirm) => {
+                info_logger(log_id, "register","Rabbit_publish_confirm");
+                confirm
+            },
             Err(err) => {
-                println!("❌ Failed to publish message: {}", err);
+                error_logger(log_id, "register", "Rabbit_publish_confirm", &format!("{}",err));
                 return Err(format!("RabbitMQ publish error: {}", err));
             }
         };
 
-        if confirm.await.is_err() {
-            return Err("RabbitMQ confirmation error".to_string());
-        }
-
         info!("✅ Successfully published register request to queue");
 
         match UserQuery::create_user(data, db_pool).await {
-            Ok(register_payload) => Ok(register_payload),
-            Err(error) => Err(format!("Database error: {}", error)),
+            Ok(register_payload) => {
+                info_logger(log_id, "register", "Create_user");
+
+                Ok(register_payload)
+            },
+            Err(error) => {
+                error_logger(log_id, "register", "Create_user", &format!("{}",error));
+                Err(format!("Database error: {}", error))
+        },
         }
     }
 }

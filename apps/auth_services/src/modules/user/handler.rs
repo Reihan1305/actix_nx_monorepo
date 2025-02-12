@@ -1,18 +1,28 @@
 use actix_web::{get, post, web::{scope, Data, Json, ServiceConfig}, HttpMessage, HttpRequest, HttpResponse, Responder};
 use log::{error, info};
+use serde::Serialize;
 use serde_json::json;
 use validator::Validate;
-use std::{borrow::Cow, collections::HashMap, time::Instant};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug, time::Instant};
 use jwt_libs::types::AccessToken;
 use crate::{middlewares::{access_token_middleware::AccessTokenMW, refresh_token_middleware::RefreshTokenMW},AppState};
 
+use logger_libs::{debug_logger, info_logger, warning_logger};
 use super::{model::{LoginData, RegisterData}, service::UserServices};
 
 // Validation function
-fn json_validate<T:Validate>(data: Json<T>) -> Result<T, HttpResponse>{
-    let data = data.into_inner();
-    
+fn json_validate<T:Validate>(
+    json_data: Json<T>,
+    log_id: &str,
+    handler:&str
+) -> Result<T, HttpResponse>
+where 
+    T: Clone + Serialize + Debug
+{
+    let data = json_data.into_inner();
+    let method_name = "Validate";
     let mut error_map: HashMap<String,Cow<'static,str>> = HashMap::new();
+
 
     if let Err(errors) = data.validate() {
         for (field, error) in errors.field_errors() {
@@ -24,11 +34,15 @@ fn json_validate<T:Validate>(data: Json<T>) -> Result<T, HttpResponse>{
                     error_map.insert(field.to_string(), error_message.clone().unwrap());
             }
         }
+
+        warning_logger(&log_id, handler,method_name, &format!("{:?}",error_map));
         return Err(HttpResponse::BadRequest().json(json!({
             "status": "failed",
             "message": error_map
         })));
     }
+
+    info_logger(&log_id, handler, method_name);
     Ok(data)
 }
 
@@ -38,17 +52,29 @@ async fn register_handlers(
     app_data: Data<AppState>
 ) -> impl Responder {
     let start = Instant::now();
-    info!("Registration process started: {:?}", start);
-
+    info!("Registration process started at: {:?}", start);
+    
+    let log_id = format!("{}-{}",uuid::Uuid::new_v4(),register_body.username);
     // Validate incoming JSON data
-    let register_data = match json_validate(register_body) {
+    let req_log = register_body.clone();
+    let register_data = match json_validate(
+        register_body,
+        &log_id,
+        "register"
+    ) {
         Ok(validated_data) => validated_data,
         Err(err_response) => return err_response,
     };
 
     // Attempt to register user
-    match UserServices::register(register_data, &app_data.db,&app_data.rabbit).await {
+    match UserServices::register(
+        &log_id,
+        register_data,
+        &app_data.db,
+        &app_data.rabbit).await {
         Ok(user_payload) => {
+            debug_logger(&log_id, "register", "Service", &req_log, &user_payload);
+            
             info!("User registered successfully with ID: {}", user_payload.id);
             let end:Instant = Instant::now();
             info!("success response take: {:?}",end - start);
@@ -59,7 +85,6 @@ async fn register_handlers(
             }))
         },
         Err(error) => {
-            log::error!("Registration failed: {}", error);
             HttpResponse::BadRequest().json(json!({
                 "status": "failed",
                 "message": format!("Server error: {}", error)

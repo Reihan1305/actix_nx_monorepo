@@ -8,6 +8,7 @@ edition = "2021"
 kafka_libs = {path = "../../libs/kafka_libs"}
 proto_libs ={ path = "../../libs/proto_libs"}
 config_libs ={ path = "../../libs/config_libs"}
+post_services = {path = "../../apps/post_services"}
 tonic = { version = "0.12.3" }
 tokio = { version = "1", features = ["full"] }
 tonic-reflection = "0.12.3"

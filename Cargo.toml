@@ -13,6 +13,7 @@ members = [
 	'apps/posts_consumer',
 	'libs/proto_libs',
 	'libs/config_libs',
+	'libs/logger_libs',
 ]
 
 [profile.release]

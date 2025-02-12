@@ -56,7 +56,8 @@
         "production": {
           "release": true
         }
-      }
+      },
+      "dependsOn":["post_services"]
     }
   },
   "tags": []

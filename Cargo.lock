@@ -682,6 +682,7 @@ dependencies = [
  "lapin",
  "lazy_static",
  "log",
+ "logger_libs",
  "pgsql_libs",
  "r2d2_redis",
  "rabbitmq_libs",
@@ -2408,6 +2409,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "logger_libs"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2998,6 +3009,7 @@ dependencies = [
  "lapin",
  "lazy_static",
  "log",
+ "post_services",
  "prost",
  "proto_libs",
  "r2d2_redis",
