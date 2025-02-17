@@ -80,11 +80,19 @@ async fn register_handlers(
             }))
         },
         Err(error) => {
-            warning_logger(&log_id, "register", "Services", &error);
-            HttpResponse::BadRequest().json(json!({
-                "status": "failed",
-                "message": format!("Server error: {}", error)
-            }))
+            if error.contains("input error"){
+                warning_logger(&log_id, "register", "Services", &error);
+                HttpResponse::BadRequest().json(json!({
+                    "status": "failed",
+                    "message": format!("{}", error)
+                }))
+            }else {
+                warning_logger(&log_id, "register", "Services", &error);
+                HttpResponse::BadGateway().json(json!({
+                    "status": "failed",
+                    "message": format!("{}", error)
+                }))
+            }
         }
     }
 }

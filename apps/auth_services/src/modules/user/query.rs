@@ -16,34 +16,45 @@ impl UserQuery {
         let existing_user = query_as!(
             RegisterPayload,
             r#"
-            SELECT id, email, username FROM "user" 
-            WHERE email = $1 OR username = $2
-            
+            SELECT id, email, username,phonenumber FROM "user" 
+            WHERE email = $1 OR username = $2 OR phonenumber = $3;
             "#,
             data.email,
-            data.username
+            data.username,
+            data.phone_number
         )
         .fetch_optional(db_pool)
         .await
         .map_err(|err| format!("Database error: {}", err))?;
 
         if existing_user.is_some() {
-            return Err("Email atau username sudah digunakan".to_string());
+            let mut existing_value:Vec<String> = Vec::new();
+            if existing_user.as_ref().unwrap().email == data.email {
+                existing_value.push("email".to_string());
+            } 
+            if existing_user.as_ref().unwrap().username == data.username {
+                existing_value.push("username".to_string());
+            }
+            if existing_user.as_ref().unwrap().phonenumber == data.phone_number {
+                existing_value.push("phone_number".to_string());
+            }
+            return Err(format!("{} already exists", existing_value.join(", ")));
         }
 
         query_as!(
             RegisterPayload,
             r#"
             INSERT INTO "user" 
-            (email, username, password)
+            (email, username, password, phonenumber)
             VALUES
-            ($1, $2, $3)
+            ($1, $2, $3,$4)
             RETURNING
-            id, email, username
+            id, email, username, phonenumber
             "#,
             data.email,
             data.username,
-            data.password
+            data.password,
+            data.phone_number
         )
         .fetch_one(db_pool)
         .await

@@ -31,7 +31,6 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok(); 
     env_logger::init();
     
-    let log_id = format!("{}",chrono::Utc::now());
     let config: UserAppConfig =config_libs::libs_config("config/user_config","USER");
     
     let db_url: String = config.database.url;
@@ -41,7 +40,7 @@ async fn main() -> std::io::Result<()> {
             pool
         }
         Err(err) => {
-            error_logger(&log_id, "main", "DbPool", &format!("{:?}",err));
+            error_logger(&format!("{:?}",err));
             std::process::exit(1);
         }
     };

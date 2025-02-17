@@ -7,6 +7,8 @@ pub struct RegisterData{
     #[validate(email(message="invalid format"))]
     pub email: String,
     #[validate(length(min=5, message="too short"))]
+    pub phone_number: String,
+    #[validate(length(min=5, message="too short"))]
     pub username: String,
     #[validate(length(min=5, message="too short"))]
     pub password: String
@@ -17,6 +19,7 @@ pub struct RegisterPayload{
     pub id:Uuid,
     pub email: String,
     pub username: String,
+    pub phonenumber: String
 }
 
 #[derive(Debug,Deserialize,Serialize,Clone)]

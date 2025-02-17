@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use log::{debug, error, info, warn};
-use serde_json::{Value, json};
+use regex::Regex;
+use serde_json::{from_str, json, Value};
 use serde::Serialize;
 
 pub fn json_conferter<T>(data:T)
@@ -19,6 +20,9 @@ where
         }
         if let Some(msisdn) = obj.get_mut("msisdn") {
             *msisdn = Value::String(phone_mask(msisdn.as_str().unwrap_or("")));
+        }
+        if let Some(phone_number) = obj.get_mut("phone_number") {
+            *phone_number = Value::String(phone_mask(phone_number.as_str().unwrap_or("")));
         }
     }
 
@@ -51,40 +55,54 @@ pub fn info_logger(
 )
 {
     info!(
-        "{} {}.{}",
+        "[ {} ] {}.{}",
         log_id,
         handler,
         method
     )
 }
 
-pub fn warning_logger(
-    log_id: &str,
-    handler: &str,
-    method: &str,
-    message: &str
-){
-    warn!(
-        "{} {}.{} warning: {}",
-        log_id,
-        handler,
-        method,
+
+pub fn warning_logger(log_id: &str, handler: &str, method: &str, message: &str) {
+    let re = Regex::new(r#"Bytes\((b?"(.*)")\)"#).unwrap();
+    
+    let extracted_message = if let Some(caps) = re.captures(message) {
+        caps.get(1).map_or(message, |m| m.as_str())
+    } else {
         message
-    )
+    };
+
+    let cleaned_message = extracted_message
+        .trim_start_matches("b\"")
+        .trim_start_matches('"')
+        .trim_end_matches('"')
+        .trim_end_matches("\"");
+
+    let unescaped_json: String = match from_str(cleaned_message) {
+        Ok(json_str) => json_str,
+        Err(_) => cleaned_message.to_string(),
+    };
+
+    let formatted_message = match from_str::<Value>(&unescaped_json) {
+        Ok(json) => json.to_string(),
+        Err(_) => {
+            unescaped_json 
+        },
+    };
+
+    warn!(
+        "[ {} ] {}.{} warning: {}",
+        log_id, handler, method, formatted_message
+    );
 }
 
+
 pub fn error_logger(
-    log_id: &str,
-    handler: &str,
-    method: &str,
     message: &str,
 )
 {
     error!(
-        "{} {}.{} error: {}",
-        log_id,
-        handler,
-        method,
+        "error: {}",
         message
     )
 }

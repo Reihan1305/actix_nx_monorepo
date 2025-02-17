@@ -5,6 +5,7 @@ use actix_web::{
     HttpMessage, 
 };
 use futures::future::{ok, LocalBoxFuture, Ready};
+use logger_libs::error_logger;
 use r2d2_redis::redis::Commands;
 
 use  crate::AppState;
@@ -52,7 +53,11 @@ where
         if let Some(state) = app_state {
             let mut redis_conn = match state.redis.get() {
                 Ok(conn) => conn,
-                Err(_) => return Box::pin(async { Err(UnauthorizedError.into()) }),
+                Err(error) => {
+                    error_logger(&format!("{}",error));
+
+                    return Box::pin(async { Err(UnauthorizedError.into()) })
+                },
             };
 
             let redis_key = "access_token".to_string();

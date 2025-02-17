@@ -227,13 +227,17 @@ impl UserServices {
         info_logger(log_id, handler_name, "hash_password");
         data.password = password_hash;
 
+        if let Err(err)= data.phone_number.parse::<i128>(){
+            return Err(format!("input error: {}",err));
+        }
+
         let conn = match rabbit_pool.get().await {
             Ok(conn) => {
                 info_logger(log_id, handler_name,"Redis_connect");
                 conn
             },
             Err(err) => {
-                error_logger(log_id, handler_name,"Redis_connect",&format!("{}",err));
+                error_logger(&format!("{}",err));
                 return Err(format!("RabbitMQ connection error: {}", err));
             }
         };
@@ -244,7 +248,7 @@ impl UserServices {
                 channel
             },
             Err(err) => {
-                error_logger(log_id, handler_name, "Rabbit_connect", &format!("{}",err));
+                error_logger(&format!("{}",err));
                 return Err(format!("RabbitMQ channel error: {}", err));
             }
         };
@@ -257,7 +261,7 @@ impl UserServices {
             )
             .await
         {
-            error_logger(log_id, handler_name,  "Rabbit_queue_declare", &format!("{}",err));
+            error_logger(&format!("{}",err));
             return Err(format!("RabbitMQ queue declare error: {}", err));
         }
 
@@ -284,7 +288,7 @@ impl UserServices {
                 confirm
             },
             Err(err) => {
-                error_logger(log_id, handler_name, "Rabbit_publish_confirm", &format!("{}",err));
+                error_logger( &format!("{}",err));
                 return Err(format!("RabbitMQ publish error: {}", err));
             }
         };
@@ -298,8 +302,8 @@ impl UserServices {
                 Ok(register_payload)
             },
             Err(error) => {
-                error_logger(log_id, handler_name, "Create_user", &format!("{}",error));
-                Err(format!("Database error: {}", error))
+                warning_logger(log_id, handler_name, "Create_user", &format!("{}",error));
+                Err(format!("{}", error))
         },
         }
     }

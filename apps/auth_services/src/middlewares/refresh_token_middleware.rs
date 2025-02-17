@@ -59,7 +59,7 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         
         let refresh_token: Option<&HeaderValue> = req.headers().get("refresh-token");
-
+        
         if let Some(token) = refresh_token {
           
             if let Ok(token_str) = token.to_str() {
