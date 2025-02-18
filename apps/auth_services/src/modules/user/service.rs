@@ -9,7 +9,7 @@ use rabbitmq_libs::RabbitMqPool;
 use redis_libs::RedisPool;
 use serde_json::json;
 
-use jwt_libs::{{decode_refresh_token, generate_access_token, generate_refresh_token},types::{AccessToken, RefreshToken, TokenClaims}};
+use jwt_libs::{{decode_refresh_token, generate_access_token, generate_refresh_token},types::{AccessToken, RefreshToken}};
 
 use super::{model::{LoginData, LoginPayload, RegisterData, RegisterPayload}, query::UserQuery};
 
@@ -114,34 +114,33 @@ impl UserServices {
         db_pool: &DbPool,
         redis_pool: &RedisPool
     )->Result<String,String>{
-        let refresh_token: Result<jsonwebtoken::TokenData<TokenClaims<RefreshToken>>, String> = decode_refresh_token(&token);
 
-        match refresh_token{
-            Ok(decode_token)=>{
-                match UserQuery::find_refresh_token(token, decode_token.claims.token.id, db_pool).await{
-                    Ok(user_id)=>{
-                        match UserQuery::find_user_by_id(user_id, db_pool).await {
-                            Ok(user)=>{
-                                let access_token = generate_access_token(user);
-                                match access_token {
-                                    Ok(token)=>{
-                                        let _ = Self::delete_access_token(redis_pool);
-                                        let _ = Self::store_access_token(token.clone(), redis_pool);
-                                        Ok(token)
-                                    },
-                                    Err(error)=> Err(format!("generate token error: {}",error))
-                                }
-                            },
-                            Err(error)=>{
-                                Err(format!("user not found :{}",error))
-                            }
-                        }
-                    },
-                    Err(error)=>Err(error)
-                }
-            },
-            Err(error)=> return Err(error)
-        }
+        let decode_token = decode_refresh_token(&token).map_err(|err|{
+            if err.contains("InvalidSignature"){
+                return "error input: invalid token".to_string();
+            }
+            format!("error decode token: {}",err)
+        })?;
+
+        let user_id = UserQuery::find_refresh_token(token, decode_token.claims.token.id, db_pool).await.map_err(|err|{
+            format!("error find refresh token: {}",err)
+        })?;
+        
+        let user = UserQuery::find_user_by_id(user_id, db_pool).await.map_err(|err|{
+            format!("error find user: {}",err)
+        })?;
+
+        let access_token = generate_access_token(user).map_err(|err|{
+            format!("error generate access token: {}",err)
+        })?;
+
+        let _ = Self::delete_access_token(redis_pool);
+
+        let _ = Self::store_access_token(access_token.clone(), redis_pool).map_err(|err|{
+            format!("error store access token: {}",err)
+        })?;
+
+        Ok(access_token)
     }
 
     pub fn store_access_token(
@@ -169,21 +168,24 @@ impl UserServices {
 
     pub fn delete_access_token(
         redis_pool: &RedisPool
-    )-> Result<(),String>{
+    )-> (){
         let redis_key = format!("access_token");
 
-        let mut conn = redis_pool.get().map_err(|e| e.to_string())?;
+        let mut conn = redis_pool.get().map_err(|e| e.to_string()).unwrap();
 
         let set_data: Result<String, RedisError> = conn.del(&redis_key);
         match set_data {
             Ok(data)=>{
                 info!("data inserted: {}",data);
-                Ok(())
             },
             Err(error)=>{
-                Err(format!("error redis: {}", error))
+                if error.to_string() != "response was int(0)"{
+                    info!("key not found");
+                }
+                info!("{}",format!("error redis: {}", error))
             }
-        }    }
+        }    
+    }
 
     pub async fn access_token(
         token: AccessToken,
@@ -237,7 +239,7 @@ impl UserServices {
                 conn
             },
             Err(err) => {
-                error_logger(&format!("{}",err));
+                error_logger("RabbitMQ_connection", &format!("{}",err));
                 return Err(format!("RabbitMQ connection error: {}", err));
             }
         };
@@ -248,7 +250,7 @@ impl UserServices {
                 channel
             },
             Err(err) => {
-                error_logger(&format!("{}",err));
+                error_logger("Rabbit_connect",&format!("{}",err));
                 return Err(format!("RabbitMQ channel error: {}", err));
             }
         };
@@ -261,7 +263,7 @@ impl UserServices {
             )
             .await
         {
-            error_logger(&format!("{}",err));
+            error_logger("RabbitMQ queue declare",&format!("{}",err));
             return Err(format!("RabbitMQ queue declare error: {}", err));
         }
 
@@ -288,7 +290,7 @@ impl UserServices {
                 confirm
             },
             Err(err) => {
-                error_logger( &format!("{}",err));
+                error_logger( "Rabbit_publish_confirm",&format!("{}",err));
                 return Err(format!("RabbitMQ publish error: {}", err));
             }
         };

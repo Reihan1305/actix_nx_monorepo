@@ -7,7 +7,7 @@ use std::{borrow::Cow, collections::HashMap, fmt::Debug, time::Instant};
 use jwt_libs::types::AccessToken;
 use crate::{middlewares::{access_token_middleware::AccessTokenMW, refresh_token_middleware::RefreshTokenMW},AppState};
 
-use logger_libs::{debug_logger, info_logger, warning_logger};
+use logger_libs::{debug_logger, error_logger, info_logger, warning_logger};
 use super::{model::{LoginData, RegisterData}, service::UserServices};
 
 // Validation function
@@ -67,7 +67,8 @@ async fn register_handlers(
         &log_id,
         register_data,
         &app_data.db,
-        &app_data.rabbit).await {
+        &app_data.rabbit
+    ).await {
         Ok(user_payload) => {
             debug_logger(&log_id, "register", "Services", &req_log, &user_payload);
             info_logger(&log_id, "register", "Services");
@@ -107,7 +108,12 @@ async fn login_handlers(
 
     let login_data = login_body.into_inner();
 
-    match UserServices::login(&log_id,login_data.clone(), &app_data.db, &app_data.redis).await{
+    match UserServices::login(
+        &log_id,
+        login_data.clone(),
+        &app_data.db, 
+        &app_data.redis
+    ).await{
         Ok(payload)=>{
             debug_logger(&log_id, "login", "Services", &login_data, &payload);
             info_logger(&log_id, "login", "Services");
@@ -137,12 +143,17 @@ async fn refresh_token_handler(
     app_state:Data<AppState>,
 ) -> impl Responder{
     let start = Instant::now();
+    let log_id = format!("{}-{}",chrono::Utc::now(),uuid::Uuid::new_v4());
+
     let token = req.extensions().get::<String>().cloned().expect("token not found");
 
-    match UserServices::refresh_token(token, &app_state.db,&app_state.redis).await{
+    match UserServices::refresh_token(
+        token, 
+        &app_state.db,
+        &app_state.redis
+    ).await{
         Ok(access_token)=>{
-            info!("proccess token: {}",access_token);
-
+            info_logger(&log_id,"refresh_token","Services");
             let end = Instant::now();
             info!("proccess refresh_token success, request time: {:?}",end - start);
             HttpResponse::Ok().json(json!({
@@ -154,10 +165,13 @@ async fn refresh_token_handler(
             }))
         },
         Err(error)=>{
-            info!("proccess token failed: {}",error);
+            let end = Instant::now();
+            error_logger("refresh_token Services", &error);
+
+            info!("proccess refresh_token failed, request time: {:?}",end - start);
             HttpResponse::BadGateway().json(json!({
                 "status":"failed",
-                "message":format!("server error: {}",error)
+                "message":format!("{}",error)
             }))
         }
     }

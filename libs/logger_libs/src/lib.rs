@@ -98,11 +98,13 @@ pub fn warning_logger(log_id: &str, handler: &str, method: &str, message: &str) 
 
 
 pub fn error_logger(
+    method: &str,
     message: &str,
 )
 {
     error!(
-        "error: {}",
+        "{}, error: {}",
+        method,
         message
     )
 }

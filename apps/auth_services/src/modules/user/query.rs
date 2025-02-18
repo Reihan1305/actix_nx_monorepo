@@ -93,7 +93,12 @@ impl UserQuery {
             token
         ).fetch_one(db_pool).await{
             Ok(_)=>Ok(userid),
-            Err(error)=>Err(format!("error database: {}", error))
+            Err(error)=>{
+                if format!("{}",error).contains("no rows returned"){
+                    return Err("refresh token not found".to_string());
+                }
+                Err(format!("error database: {}", error))
+            }
         }
 
     }

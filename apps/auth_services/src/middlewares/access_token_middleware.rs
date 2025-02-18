@@ -54,7 +54,7 @@ where
             let mut redis_conn = match state.redis.get() {
                 Ok(conn) => conn,
                 Err(error) => {
-                    error_logger(&format!("{}",error));
+                    error_logger("Redis Connection",&format!("{}",error));
 
                     return Box::pin(async { Err(UnauthorizedError.into()) })
                 },
@@ -62,27 +62,28 @@ where
 
             let redis_key = "access_token".to_string();
 
-            match redis_conn.get::<String, String>(redis_key) {
-                Ok(token) => {
-                    match decode_access_token(&token) {
-                        Ok(user) => {
-                            req.extensions_mut().insert(user.claims.token);
-
-                            let fut = self.service.call(req);
-                            return Box::pin(async move {
-                                let res = fut.await?;
-                                Ok(res)
-                            });
-                        }
-                        Err(_) => {
-                            return Box::pin(async { Err(UnauthorizedError.into()) });
-                        }
-                    }
-                }
+            let refresh_token = match redis_conn.get::<String, String>(redis_key) {
+                Ok(token) => token,
                 Err(_) => {
                     return Box::pin(async { Err(UnauthorizedError.into()) });
                 }
-            }
+            };
+
+            let user = match decode_access_token(&refresh_token) {
+                Ok(user_token) => user_token.claims.token,
+                Err(_) => {
+                    return Box::pin(async { Err(UnauthorizedError.into()) });
+                }
+            };
+
+            req.extensions_mut().insert(user);
+            
+            let fut = self.service.call(req);
+
+            return Box::pin(async move {
+                let res = fut.await?;
+                Ok(res)
+            })
         }
 
         Box::pin(async { Err(UnauthorizedError.into()) })

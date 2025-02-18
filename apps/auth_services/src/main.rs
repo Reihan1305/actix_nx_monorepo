@@ -40,7 +40,7 @@ async fn main() -> std::io::Result<()> {
             pool
         }
         Err(err) => {
-            error_logger(&format!("{:?}",err));
+            error_logger("Database Connect",&format!("{:?}",err));
             std::process::exit(1);
         }
     };
