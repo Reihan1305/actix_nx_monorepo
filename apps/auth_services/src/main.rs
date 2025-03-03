@@ -16,8 +16,8 @@ use env_logger;
 use redis_libs::{RedisPool,redis_connect};
 mod middlewares;
 mod modules;
+use logger_libs::Logger as service_logger;
 mod config_type;
-// use config_type::{DB_URL, RABBIT_URL, REDIS_HOSTNAME};
 use rabbitmq_libs::{RabbitMqPool,rabbit_connect};
 pub struct AppState {
     db: DbPool,
@@ -25,41 +25,39 @@ pub struct AppState {
     rabbit: RabbitMqPool
 }
 
-
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok(); 
     env_logger::init();
-
+    let handler_name = "main";
     let config_path = match var("CONFIG_PATH") {
         Ok(path)=>path,
         Err(error)=>{
-            logger_libs::Logger::err_logger("main", "main.config", &error);
+            service_logger::err_logger(handler_name,"main", "main.config", &error);
             exit(1)
         }
     };
     
     let config: UserAppConfig= match config_libs::libs_config(&config_path,"USER"){
         Ok(data_config) => {
-            logger_libs::Logger::info_logger("main", "main.config");
+            service_logger::info_logger(handler_name,"main", "main.config");
             data_config
         },
         Err(err)=>{
-            logger_libs::Logger::err_logger("main", "main.config", &err);
+            service_logger::err_logger(handler_name,"main", "main.config", &err);
             exit(1)
         }
     };
-    
+
     let db_url: String= config.database.url;
 
     let db_pool: DbPool= match create_db_pool(db_url, 5, 50).await {
         Ok(pool) => {
-            logger_libs::Logger::info_logger("main","main.connectDb");
+            service_logger::info_logger(handler_name,"main","main.connectDb");
             pool
         }
         Err(err) => {
-            logger_libs::Logger::err_logger("main", "main.cconnectdb",&err);
+            service_logger::err_logger(handler_name,"main", "main.cconnectdb",&err);
             std::process::exit(1);
         }
     };
@@ -67,11 +65,11 @@ async fn main() -> std::io::Result<()> {
 
     let redis_pool: RedisPool= match redis_connect(redis_host,None,10,50){
         Ok(connections)=>{
-            logger_libs::Logger::info_logger("main", "main.redis_connection");
+            service_logger::info_logger(handler_name,"main", "main.redis_connection");
             connections
         },
         Err(error)=>{
-            logger_libs::Logger::err_logger("main", "main.redis_connection", &error);
+            service_logger::err_logger(handler_name,"main", "main.redis_connection", &error);
             exit(1)
         }
     };
@@ -80,11 +78,11 @@ async fn main() -> std::io::Result<()> {
 
     let rabbit_pool: RabbitMqPool= match rabbit_connect(rabbit_url,10){
         Ok(rb_pool)=>{
-            logger_libs::Logger::info_logger("main", "main.rabbitmq_connections");
+            service_logger::info_logger(handler_name,"main", "main.rabbitmq_connections");
             rb_pool
         },
         Err(error)=>{
-            logger_libs::Logger::err_logger("main", "main.rabbitmq_connections", &error);
+            service_logger::err_logger(handler_name,"main", "main.rabbitmq_connections", &error);
             exit(1)
         }
     };
@@ -115,23 +113,24 @@ async fn main() -> std::io::Result<()> {
 #[get("/healthcheck")]
 async fn api_health_check(data: web::Data<AppState>) -> impl Responder {
     let log_id = "healtcheck";
+    let handler_name = "health_check";
     let mut error_messages = vec![];
 
     if let Err(err) = sqlx::query("SELECT 1;").fetch_one(&data.db).await {
-        logger_libs::Logger::err_logger(log_id, "healtcheck.database_check", &err);
+        service_logger::err_logger(handler_name,log_id, "healtcheck.database_check", &err);
         error_messages.push(json!({
             "database": format!("❌ Cannot connect to database: {}", err)
         }));
     }
 
-    logger_libs::Logger::info_logger(log_id, "healtcheck.database_check");
+    service_logger::info_logger(&handler_name,log_id, "healtcheck.database_check");
 
     match data.redis.get() {
         Ok(mut conn) => {
             let _: () = match conn.set::<&str,&str,String>("testing_redis", "yoo"){
                 Ok(_)=>(),
                 Err(error)=>{
-                    logger_libs::Logger::err_logger(log_id,"healtcheck.redischeck", &error);
+                    service_logger::err_logger(handler_name,log_id,"healtcheck.redischeck", &error);
                     error_messages.push(json!({
                         "database": format!("❌ Cannot connect to redis: {}", error)
                     }));
@@ -140,7 +139,7 @@ async fn api_health_check(data: web::Data<AppState>) -> impl Responder {
             };
             let redis_value: Result<String,RedisError> = match conn.get("testing_redis") {
                 Ok(value) => {
-                    logger_libs::Logger::info_logger(log_id,"healthcheck.redischeck");
+                    service_logger::info_logger(handler_name,log_id,"healthcheck.redischeck");
                     Ok(value)
                 },
                 Err(error)=>{
@@ -149,11 +148,11 @@ async fn api_health_check(data: web::Data<AppState>) -> impl Responder {
             };
             match redis_value {
                 Ok(_)=>{
-                    logger_libs::Logger::info_logger(log_id, "healthcheck.redischeck");
+                    service_logger::info_logger(handler_name,log_id, "healthcheck.redischeck");
                     let _ : () = conn.del("testing_redis").expect("failed to delete redis");
                 },
                 Err(error)=>{
-                    logger_libs::Logger::err_logger(log_id, "healthcheck.redischeck", &error);
+                    service_logger::err_logger(handler_name,log_id, "healthcheck.redischeck", &error);
                     error_messages.push(json!({
                         "database": format!("❌ Cannot connect to redis: {}", error)
                     }));
@@ -161,14 +160,14 @@ async fn api_health_check(data: web::Data<AppState>) -> impl Responder {
             }
         }
         Err(err) => {
-            logger_libs::Logger::err_logger(log_id, "healthcheck.redischeck", &err);
+            service_logger::err_logger(handler_name,log_id, "healthcheck.redischeck", &err);
             error_messages.push(json!({
                 "redis": format!("❌ Cannot connect to redis: {}", err)
             }));
         }
     }
 
-    logger_libs::Logger::info_logger(log_id,"healthcheck.redischeck");
+    service_logger::info_logger(handler_name,log_id,"healthcheck.redischeck");
 
     match data.rabbit.get().await {
         Ok(conn) => {
@@ -196,7 +195,7 @@ async fn api_health_check(data: web::Data<AppState>) -> impl Responder {
                     .await {
                         Ok(_)=>(),
                         Err(error)=>{
-                            logger_libs::Logger::err_logger(log_id, "healthcheck.rabbitmq_check", &error);
+                            service_logger::err_logger(handler_name,log_id, "healthcheck.rabbitmq_check", &error);
                             error_messages.push(json!({
                                 "rabbit": format!("❌ Cannot connect to rabbit: {}", error)
                             }));
@@ -204,16 +203,16 @@ async fn api_health_check(data: web::Data<AppState>) -> impl Responder {
                     }
                 },
                 Err(error)=>{
-                    logger_libs::Logger::err_logger(log_id, "healthcheck.rabbitmq_check", &error);
+                    service_logger::err_logger(handler_name,log_id, "healthcheck.rabbitmq_check", &error);
                     error_messages.push(json!({
                         "rabbit": format!("❌ Cannot connect to rabbit: {}", error)
                     }));
                 }
             };
-              logger_libs::Logger::info_logger(log_id, "healthcheck.rabbitmq_check");
+              service_logger::info_logger(handler_name,log_id, "healthcheck.rabbitmq_check");
         }
         Err(err) => {
-            logger_libs::Logger::err_logger(log_id, "healthcheck.rabbitmq_check", &err);
+            service_logger::err_logger(handler_name,log_id, "healthcheck.rabbitmq_check", &err);
             error_messages.push(json!({
                 "rabbit": format!("❌ Cannot connect to rabbit: {}", err)
             }));

@@ -16,8 +16,8 @@ impl UserQuery {
         let existing_user = query_as!(
             RegisterPayload,
             r#"
-            SELECT id, email, username,phonenumber FROM "user" 
-            WHERE email = $1 OR username = $2 OR phonenumber = $3;
+                SELECT id, email, username,phonenumber FROM "user" 
+                WHERE email = $1 OR username = $2 OR phonenumber = $3;
             "#,
             data.email,
             data.username,
@@ -41,7 +41,7 @@ impl UserQuery {
             return Err(format!("{} already exists", existing_value.join(", ")));
         }
 
-        query_as!(
+        let new_user = query_as!(
             RegisterPayload,
             r#"
             INSERT INTO "user" 
@@ -57,8 +57,12 @@ impl UserQuery {
             data.phone_number
         )
         .fetch_one(db_pool)
-        .await
-        .map_err(|err| format!("error query: {}", err)) 
+        .await;
+
+        match new_user {
+            Ok(user) => Ok(user),
+            Err(err) => Err(format!("Database error: {}", err)),
+        }
     }
 
     pub async fn create_refresh_token(

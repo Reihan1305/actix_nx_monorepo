@@ -4,6 +4,7 @@ use validator::Validate;
 
 #[derive(Debug,Serialize, Deserialize, Validate,Clone)]
 pub struct RegisterData{
+    pub request_id: String,
     #[validate(email(message="invalid format"))]
     pub email: String,
     #[validate(length(min=5, message="too short"))]
@@ -24,6 +25,7 @@ pub struct RegisterPayload{
 
 #[derive(Debug,Deserialize,Serialize,Clone)]
 pub struct LoginData{
+    pub request_id: String,
     pub email: Option<String>,
     pub username: Option<String>,
     pub password: String

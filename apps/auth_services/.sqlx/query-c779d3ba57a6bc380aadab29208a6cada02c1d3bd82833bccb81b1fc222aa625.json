@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT * FROM \"refresh_token\" where userid = $1 AND refreshtoken = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "refreshtoken",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "userid",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c779d3ba57a6bc380aadab29208a6cada02c1d3bd82833bccb81b1fc222aa625"
+}

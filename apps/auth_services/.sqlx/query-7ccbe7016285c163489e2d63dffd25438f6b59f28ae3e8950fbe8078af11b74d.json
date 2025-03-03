@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO \"refresh_token\" \n            (userid,refreshtoken) VALUES\n            ($1,$2)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7ccbe7016285c163489e2d63dffd25438f6b59f28ae3e8950fbe8078af11b74d"
+}
