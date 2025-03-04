@@ -1,0 +1,19 @@
+[apps]
+port = 8080
+
+[database]
+user = "postgres"
+password = "postgres"
+name = "user_database"
+host = "localhost"
+port = "5432"
+url = "postgresql://postgres:postgres@localhost:5431/user_database"
+
+[redis]
+host = "localhost:6379"
+
+[rabbitmq]
+url = "amqp://guest:guest@127.0.0.1:5672"
+
+[logger]
+log = "info"
