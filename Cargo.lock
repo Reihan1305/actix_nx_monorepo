@@ -3010,6 +3010,7 @@ dependencies = [
  "lapin",
  "lazy_static",
  "log",
+ "logger_libs",
  "post_services",
  "prost",
  "proto_libs",
@@ -3033,8 +3034,11 @@ name = "post_services"
 version = "0.1.0"
 dependencies = [
  "config_libs",
+ "dotenv",
+ "env_logger",
  "jwt_libs",
  "lapin",
+ "logger_libs",
  "pgsql_libs",
  "prost",
  "proto_libs",

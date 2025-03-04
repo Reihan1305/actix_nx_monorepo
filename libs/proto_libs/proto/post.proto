@@ -48,6 +48,5 @@ message PostResponse{
 }   ;
 
 message PostListResponse {
-    repeated PostResponse posts = 1; // Ditambahkan untuk mengembalikan daftar post
-  }
-  
+    repeated PostResponse posts = 1;
+}

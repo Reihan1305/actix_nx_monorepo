@@ -34,7 +34,6 @@ async fn main() -> std::io::Result<()> {
 
     let config:PostGatewayAppConfig = config_libs::libs_config("config/post_gateway_config", "POST-GATEWAY");
 
-
     let grpc_url = config.grpc.url;
 
     let post_client = PostClient::connect(grpc_url.clone()).await.expect("Failed to connect to PostClient");

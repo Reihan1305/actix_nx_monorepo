@@ -36,7 +36,7 @@ impl PostQuery{
     pub async fn get_post_by_id(
         post_id:Uuid,
         db_pool: &DbPool
-    )->Result<PostPayload,String>{
+    )->Result<Option<PostPayload>,String>{
         let new_post = query_as!(
             PostPayload,  
             r#"
@@ -45,7 +45,7 @@ impl PostQuery{
             "#,
             post_id,
         )
-        .fetch_one(db_pool)  
+        .fetch_optional(db_pool)  
         .await;
         
         match new_post {
@@ -60,7 +60,7 @@ impl PostQuery{
         limit: i64
     ) -> Result<Vec<PostResponse>, String> {
         let offset = (page - 1) * limit;
-    
+        
         let posts = query_as!(
             PostResponse,
             r#"
@@ -107,8 +107,9 @@ impl PostQuery{
     
         // Find the post by ID
         let post = match Self::get_post_by_id(update_data.post_id, db_pool).await {
-            Ok(post) => post,
-            Err(error) => return Err(Status::invalid_argument(format!("post not found: {}",error))),
+            Ok(Some(post)) => post,
+            Ok(None)=> return Err(Status::invalid_argument(format!("post not found: "))),
+            Err(error) => return Err(Status::internal(format!("error database: {}",error))),
         };
         
         if user.id != post.user_id {

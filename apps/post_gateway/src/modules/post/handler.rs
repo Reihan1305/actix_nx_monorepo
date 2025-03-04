@@ -97,7 +97,7 @@ pub async fn update_post(
 
     let response = {
         let mut client = data.protected_post_client.lock().await;
-        client.update_post(request).await
+        client.1(request).await
     };
 
     match response {

@@ -1,12 +1,12 @@
 services:
-  postgres:
+  postgresdb:
     image: postgres:latest
-    container_name: postgres
+    container_name: postgresdb
     environment:
       POSTGRES_USER: ${DB_ROOT_USERNAME}
       POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
-      - '5432:5432'
+      - '5431:5432'
     volumes:
       - postgresDB:/var/lib/postgresql/data
     env_file:

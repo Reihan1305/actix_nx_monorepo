@@ -1,11 +1,10 @@
-use deadpool_lapin::{Config, Manager, Pool, Timeouts};
+use deadpool_lapin::{BuildError, Config, Manager, Pool, Timeouts};
 use lapin::ConnectionProperties;
 use std::time::Duration;
 
 pub type RabbitMqPool = Pool;
 
-pub fn rabbit_connect(rabbitmq_url: String) -> RabbitMqPool {
-
+pub fn rabbit_connect(rabbitmq_url: String, max_conn:usize) -> Result<RabbitMqPool,BuildError> {
     let config = Config {
         url: Some(rabbitmq_url),
         ..Default::default()
@@ -13,14 +12,16 @@ pub fn rabbit_connect(rabbitmq_url: String) -> RabbitMqPool {
 
     let manager = Manager::new(config.url.unwrap(),ConnectionProperties::default());
 
-    Pool::builder(manager)
-    .max_size(15)
+    match Pool::builder(manager)
+    .max_size(max_conn)
     .timeouts(Timeouts{
         wait:Some(Duration::from_secs(60)),
         create:Some(Duration::from_secs(60)),
         recycle:Some(Duration::from_secs(60))
     })
     .runtime(deadpool_lapin::Runtime::Tokio1)
-    .build()
-    .expect("failed to create rabbit pool")
+    .build() {
+        Ok(rabbit_pool)=>Ok(rabbit_pool),
+        Err(err)=>Err(err)
+    }
 }

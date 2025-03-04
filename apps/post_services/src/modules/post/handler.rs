@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use jwt_libs::types::AccessToken;
+use logger_libs::Logger;
 use sqlx::types::Uuid;
 use tonic::{async_trait, Request, Response, Status};
 use pgsql_libs::DbPool;
@@ -29,18 +30,24 @@ impl Post for PostService{
         &self,
         request: Request<GetAllPostRequest>
     )-> Result<Response<PostListResponse>,Status>{
+        let handler_name =  "get_all_post";
+        let log_id = format!("get_all_post.{}",Uuid::new_v4());
         let data: &GetAllPostRequest = request.get_ref();
 
         let posts = match PostQuery::get_all_posts(&self.dbpool, data.page, data.limits).await{
-            Ok(posts)=>posts,
-            Err(error)=> return Err(Status::internal(error))
+            Ok(posts)=>{
+                Logger::info_logger(handler_name, &log_id, "get_all_data");
+                posts
+            },
+            Err(error)=> {
+                Logger::warning_logger(handler_name, &log_id, "get_all_data", &error);
+                return Err(Status::invalid_argument(error))
+            }
         };
-
 
         let response: PostListResponse = PostListResponse{
             posts
         };
-
         Ok(Response::new(response))
     }   
 
@@ -49,13 +56,24 @@ impl Post for PostService{
         &self,
         request: Request<PostIdRequest>
     )-> Result<Response<PostResponse>,Status>{
+        let handler_name = "get_post_by_id";
         let data: &PostIdRequest = request.get_ref();
-        
-        let post = match PostQuery::get_post_by_id(data.post_id.parse::<Uuid>().expect("invalid id"), &self.dbpool).await{
-            Ok(post)=>post,
-            Err(error)=> return Err(Status::internal(error))
+        let log_id = format!("{}.{}",handler_name,data.post_id);
+        let post = match PostQuery::get_post_by_id(data.post_id.parse::<Uuid>().expect("invalid id"), &self.dbpool).await {
+            Ok(Some(post)) => {
+                Logger::info_logger(handler_name, &log_id, "get_post_in_db");
+                post
+            },
+            Ok(None) => {
+                Logger::warning_logger(handler_name, &log_id, "get_post_in_db", "data not found");
+                return Err(Status::not_found("Data not found"));
+            },
+            Err(err) => {
+                Logger::err_logger(handler_name, &log_id, "get_post_in_db", &err);
+                return Err(Status::internal("Database error"));
+            }
         };
-
+        
         let response = PostResponse{
             id: post.id.to_string(),
             user_id: post.user_id.to_string(),
@@ -76,11 +94,15 @@ impl AuthPostService{
     pub fn user_validate<T>(
         req: &Request<T>
     )->Result<AccessToken,Status>{
+        let handle_name = "user_validate";
+        let log_id = "user_validate";
         match req.extensions().get::<Arc<AccessToken>>(){
             Some(token)=>{
+                Logger::info_logger(handle_name, log_id, "validate_token");
                 Ok(token.as_ref().clone())
             },
             None=>{
+                Logger::warning_logger(handle_name, log_id, "validate_token","token not found");
                 return Err(Status::unauthenticated(format!("invalid token")))
             }
         }
@@ -93,9 +115,11 @@ impl ProtectedPost for AuthPostService{
         &self,
         request: Request<CreatePostRequest>
     )->Result<Response<PostResponse>,Status>{
+        let handler_name= "create_post";
         let user = self::AuthPostService::user_validate(&request)?;
 
-        let input = request.get_ref();
+        let log_id = format!("{}.{}",handler_name,user.id);
+        let input: &CreatePostRequest = request.get_ref();
 
         let data: CreatePost = CreatePost{
             user_id:user.id,
@@ -108,8 +132,12 @@ impl ProtectedPost for AuthPostService{
             data,
             &self.dbpool
         ).await{
-            Ok(posts)=> posts,
+            Ok(posts)=> {
+                Logger::info_logger(handler_name, &log_id, "create_post.insert_db");
+                posts
+            },
             Err(error)=>{
+                Logger::warning_logger(&handler_name, &log_id, "create_post.insert_db", &error);
                 return Err(Status::internal(error))
             }
         };
@@ -129,7 +157,10 @@ impl ProtectedPost for AuthPostService{
         &self,
         request: tonic::Request<UpdatePostRequest>
     )-> Result<Response<PostResponse>,Status>{
-        let user =  self::AuthPostService::user_validate(&request)?;
+        let handler_name= "create_post";
+        let user = self::AuthPostService::user_validate(&request)?;
+
+        let log_id = format!("{}.{}",handler_name,user.id);
         let data: &UpdatePostRequest= request.get_ref();
 
         let update_data: UpdatePost = UpdatePost{
@@ -140,6 +171,7 @@ impl ProtectedPost for AuthPostService{
         };
         match PostQuery::update_post(update_data, &self.dbpool).await{
             Ok(posts)=>{
+                Logger::info_logger(handler_name, &log_id, "create_post.update_db");
                 let response:PostResponse = PostResponse{
                     content:posts.content,
                     id:posts.id.to_string(),
@@ -151,6 +183,7 @@ impl ProtectedPost for AuthPostService{
                 Ok(Response::new(response))
             },
             Err(error)=>{
+                Logger::warning_logger(&handler_name, &log_id, "create_post.insert_db", &format!("{}",error));
                 Err(error)
             }
         }
@@ -161,12 +194,16 @@ impl ProtectedPost for AuthPostService{
         &self,
         request:Request<PostIdRequest>
     )-> Result<Response<DeleteResponse>,Status>{
-        let user =  self::AuthPostService::user_validate(&request)?;
+        let handler_name= "create_post";
+        let user = self::AuthPostService::user_validate(&request)?;
+
+        let log_id = format!("{}.{}",handler_name,user.id);
         let data = request.get_ref();
         
 
         match PostQuery::delete_post(user.id, data.post_id.parse::<Uuid>().unwrap(), &self.dbpool).await{
             Ok(delete_response)=>{
+                Logger::info_logger(handler_name, &log_id, "create_post.delete_db_data");
                 let response: DeleteResponse = DeleteResponse{
                     post_id: String::from(delete_response.post_id),
                     user_id: String::from(delete_response.user_id),
@@ -174,7 +211,10 @@ impl ProtectedPost for AuthPostService{
                 };
                 Ok(Response::new(response))
             },
-            Err(error)=>Err(Status::internal(error))   
+            Err(error)=>{
+                Logger::warning_logger(&handler_name, &log_id, "create_post.insert_db", &format!("{}",error));
+                Err(Status::internal(error))
+            }   
         }
     }
 }

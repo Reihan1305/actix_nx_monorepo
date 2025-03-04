@@ -7,17 +7,21 @@ pub struct Database{
     pub name: String,
     pub port: u64,
     pub host: String,
-    pub url: String
+    pub url: String,
+    pub min_pool_connection: u32,
+    pub max_pool_connection: u32
 }
 
 #[derive(Deserialize, Debug, Default, PartialEq, Eq)]
 pub struct Apps{
-    port:u64
+    pub address: String
 }
 
 #[derive(Deserialize, Debug, Default, PartialEq, Eq)]
 pub struct Redis{
-    pub host: String
+    pub host: String,
+    pub min_pool_connection: u32,
+    pub max_pool_connection: u32
 }
 
 #[derive(Deserialize, Debug, Default, PartialEq, Eq)]

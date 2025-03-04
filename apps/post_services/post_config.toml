@@ -1,5 +1,5 @@
 [apps]
-port = 8080
+address = "[::1]:50501"
 
 [database]
 user = "postgres"
@@ -8,12 +8,12 @@ name = "user_database"
 host = "localhost"
 port = "5432"
 url = "postgresql://postgres:postgres@localhost:5432/user_database"
-
+min_pool_connection = 10
+max_pool_connection = 100
 [redis]
 host = "localhost:6379"
-
-[rabbitmq]
-url = "amqp://guest:guest@127.0.0.1:5672"
+min_pool_connection = 10
+max_pool_connection = 100
 
 [logger]
 log = "info"

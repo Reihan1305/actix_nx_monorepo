@@ -29,7 +29,7 @@ pub struct AppState {
 async fn main() -> std::io::Result<()> {
     dotenv().ok(); 
     env_logger::init();
-    let handler_name = "main";
+    let handler_name = "main_auth_services";
     let config_path = match var("CONFIG_PATH") {
         Ok(path)=>path,
         Err(error)=>{
