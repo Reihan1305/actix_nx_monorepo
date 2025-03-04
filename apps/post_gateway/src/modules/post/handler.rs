@@ -48,7 +48,7 @@ pub async fn create_post(
             content: req.content.clone(),  
     };
 
-    let log_id= &format!("{}.{}",handler_name,&request_data.title);
+    let log_id= &format!("post_gateway.create_post.{}",&request_data.title);
 
     let request = tonic::Request::new(request_data);
     
@@ -78,7 +78,7 @@ pub async fn create_post(
             }))
         },
         Err(error) => {
-            Logger::err_logger(&handler_name, log_id, "post_gateway.create_post.insert_services", &error    );
+            Logger::warning_logger(&handler_name, log_id, "post_gateway.create_post.insert_services", &format!("{}",error));
             HttpResponse::BadRequest().json(json!({
                 "message": "create post failed",
                 "error": format!("{}", error)
