@@ -2,6 +2,7 @@ use actix_web::{
     delete, get, patch, post, web::{scope, Data, Json, Path, Query, ServiceConfig}, HttpResponse, Responder
 };
 use kafka_libs::{send_message, Producer};
+use logger_libs::Logger;
 use serde_json::json;
 use uuid::Uuid;
 use proto_libs::post_proto;
@@ -24,8 +25,14 @@ pub async fn send_event(
     let producer_ref = &*producer_guard;
 
     match send_message(producer_ref, topic, &key, &message).await {
-        Ok(_) => Ok(()),
-        Err(_) => Err(HttpResponse::InternalServerError().json("Failed to send message to Kafka")),
+        Ok(_) => {
+            Logger::info_logger("post_gateway.send_handler", &format!("{}",key), "send_event.send_message");
+            Ok(())
+        },
+        Err(error) => {
+            Logger::err_logger("post_gateway.send_handler", &format!("{}",key), "send_event.send_message",error);
+            Err(HttpResponse::InternalServerError().json("Failed to send message to Kafka"))
+        },
     }
 }
 
@@ -34,13 +41,15 @@ pub async fn create_post(
     data: Data<AppState>,
     content: Json<CreatePostRequest>
 ) -> impl Responder {
-    let req = content.into_inner();
+    let handler_name = "post_gateway.create_post";
+    let req = &content.into_inner();
     let request_data = post_proto::CreatePostRequest{
-            title: req.title,
-            content: req.content,  
+            title: req.title.clone(),
+            content: req.content.clone(),  
     };
 
-    
+    let log_id= &format!("{}.{}",handler_name,&request_data.title);
+
     let request = tonic::Request::new(request_data);
     
     let response = {
@@ -48,27 +57,28 @@ pub async fn create_post(
         client.create_post(request).await
     };
 
-
-
     match response {
         Ok(message) => {
-            let message = message.into_inner();
+            let message = &message.into_inner();
             let response = PostResponse{
                 id: message.id.parse::<Uuid>().unwrap(),
-                title: message.title,
-                content: message.content,
+                title: message.title.clone(),
+                content: message.content.clone(),
                 user_id:message.user_id.parse::<Uuid>().unwrap(),
-                username:message.username
+                username:message.username.clone()
             };
             let kafka_message = String::from("post created");
             let _ = send_event(&data.kafka_producer,response.id , response.user_id, kafka_message).await;
-    
+            Logger::info_logger(&handler_name, log_id,"post_gateway.create_post.insert_services");
+        
+            Logger::debug_logger(&handler_name, log_id, req, "post_gateway.create_post.insert_services", &response);
             HttpResponse::Created().json(json!({
                 "message": "post created",
                 "data": response
             }))
         },
         Err(error) => {
+            Logger::err_logger(&handler_name, log_id, "post_gateway.create_post.insert_services", &error    );
             HttpResponse::BadRequest().json(json!({
                 "message": "create post failed",
                 "error": format!("{}", error)
@@ -85,19 +95,21 @@ pub async fn update_post(
     content: Json<CreatePostRequest>
 ) -> impl Responder {
     let post_id = path.into_inner();
+    let handler_name = "post_gateway.update_post";
+    let log_id = &format!("post_gateway.update_post.{}",post_id);
 
-    let req = content.into_inner();
+    let req = &content.into_inner();
     let request_data = post_proto::UpdatePostRequest{
             post_id: post_id.to_string(),
-            title: req.title,
-            content: req.content,  
+            title: req.title.clone(),
+            content: req.content.clone(),  
     };
 
     let request = tonic::Request::new(request_data);
 
     let response = {
         let mut client = data.protected_post_client.lock().await;
-        client.1(request).await
+        client.update_post(request).await
     };
 
     match response {
@@ -111,6 +123,9 @@ pub async fn update_post(
                 username:message.username
             };
 
+            Logger::debug_logger(&handler_name, log_id, req, "post_gateway.update_in_services", &response);
+            Logger::info_logger(&handler_name, log_id, "post_gateway.update_in_services");
+
             let kafka_message = String::from("post updated");
             let _ = send_event(&data.kafka_producer,response.id , response.user_id, kafka_message).await;
     
@@ -120,13 +135,13 @@ pub async fn update_post(
             }))
         },
         Err(error) => {
+            Logger::err_logger(&handler_name, log_id, "post_gateway.update_in_services", &error);
             HttpResponse::BadRequest().json(json!({
                 "message": "create post failed",
                 "error": format!("{}", error)
             }))
         }
     }
-    
 }
 
 #[delete("/delete_post/{post_id}")]
@@ -135,6 +150,8 @@ pub async fn delete_post(
     path: Path<Uuid>
 ) -> impl Responder {
     let post_id: Uuid = path.into_inner();
+    let handler_name = "post_gateway.delete_post";
+    let log_id = &format!("post_gateway.delete_post.{}",post_id);
 
     let request_data = post_proto::PostIdRequest{
             post_id: post_id.to_string()
@@ -151,16 +168,18 @@ pub async fn delete_post(
         Ok(message) => {
             let message = message.into_inner();
             let response_message = format!("post: {} successfully deleted",message.post_id);
-            
+            Logger::debug_logger(&handler_name, log_id, &post_id, "post_gateway.delete_post_in_services", &response_message);
+
+            Logger::info_logger(&handler_name, log_id, "post_gateway.delete_post_in_services");
             let kafka_message = String::from("post created");
             let _ = send_event(&data.kafka_producer,message.post_id.parse::<Uuid>().unwrap() , message.user_id.parse::<Uuid>().unwrap(), kafka_message).await;
-    
 
             HttpResponse::Created().json(json!({
                 "message": response_message
             }))
         },
         Err(error) => {
+            Logger::err_logger(&handler_name, log_id, "post_gateway.delete_post_in_services",&error);
             HttpResponse::BadRequest().json(json!({
                 "message": "create post failed",
                 "error": format!("{}", error)
@@ -191,12 +210,10 @@ pub async fn get_all_post(
     let limits = query.limits.unwrap_or(10); 
     let page = query.page.unwrap_or(1); 
 
-    println!("Fetching posts with limits: {}, page: {}", limits, page);
-
-    // Simulasi query ke database atau panggilan ke gRPC
     let request_data = post_proto::GetAllPostRequest { limits: limits as i64, page: page as i64 };
 
-
+    let handler_name = "post_gateway.get_all_post";
+    let log_id = &format!("post_gateway.get_all_post.{}",Uuid::new_v4());
     let response = {
         let mut client = data.post_client.lock().await;
         client.get_all_post(request_data).await
@@ -214,7 +231,8 @@ pub async fn get_all_post(
                 username:post.username
             })
             .collect();
-        
+            
+            Logger::info_logger(&handler_name, log_id, "post_gateway.get_all_post_in_post_services");
             HttpResponse::Ok().json(json!({
                 "message": "fetch all posts success",
                 "limits": limits,
@@ -223,6 +241,7 @@ pub async fn get_all_post(
             }))
         },
         Err(error) => {
+            Logger::warning_logger(&handler_name, log_id, "post_gateway.get_all_post_in_post_services",&format!("{}",error));
             HttpResponse::BadRequest().json(json!({
                 "message": "fetch all posts failed",
                 "error": format!("{}", error)
@@ -237,10 +256,9 @@ pub async fn get_post_by_id(
     path: Path<Uuid>,  
 ) -> impl Responder {
     let post_id = path.into_inner(); 
+    let handler_name = "post_gateway.get_post_by_id";
+    let log_id = &format!("post_gateway.get_post_by_id.{}",post_id);
 
-    println!("Fetching post with ID: {}", post_id);
-
-    // Membuat request ke gRPC
     let request_data = post_proto::PostIdRequest {
         post_id: post_id.to_string(),
     };
@@ -261,12 +279,15 @@ pub async fn get_post_by_id(
                 username: message.username
             };
 
+            Logger::info_logger(&handler_name, log_id, "get_post_by_id_in_post_services");
             HttpResponse::Ok().json(json!({
                 "message": "fetch post success",
                 "data": post
             }))
         },
         Err(error) => {
+            Logger::warning_logger(&handler_name, log_id, "get_post_by_id_in_post_services",&format!("{}",error));
+
             HttpResponse::NotFound().json(json!({
                 "message": "post not found",
                 "error": format!("{}", error)

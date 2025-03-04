@@ -1,6 +1,3 @@
-
-use std::process::exit;
-
 use actix_web::{
     get, middleware::Logger, web::{self, scope}, App, HttpResponse, HttpServer, Responder
 };
@@ -34,7 +31,7 @@ async fn main() -> std::io::Result<()> {
         Ok(path)=>path,
         Err(error)=>{
             service_logger::err_logger(handler_name,"main", "main.config", &error);
-            exit(1)
+            panic!("{}",error)
         }
     };
     
@@ -45,7 +42,7 @@ async fn main() -> std::io::Result<()> {
         },
         Err(err)=>{
             service_logger::err_logger(handler_name,"main", "main.config", &err);
-            exit(1)
+            panic!("{}",err)
         }
     };
 
@@ -58,7 +55,7 @@ async fn main() -> std::io::Result<()> {
         }
         Err(err) => {
             service_logger::err_logger(handler_name,"main", "main.cconnectdb",&err);
-            std::process::exit(1);
+            panic!("{}",err);
         }
     };
     let redis_host: String = config.redis.host;
@@ -70,7 +67,7 @@ async fn main() -> std::io::Result<()> {
         },
         Err(error)=>{
             service_logger::err_logger(handler_name,"main", "main.redis_connection", &error);
-            exit(1)
+            panic!("{}",error)
         }
     };
 
@@ -83,7 +80,7 @@ async fn main() -> std::io::Result<()> {
         },
         Err(error)=>{
             service_logger::err_logger(handler_name,"main", "main.rabbitmq_connections", &error);
-            exit(1)
+            panic!("{}",error)
         }
     };
 

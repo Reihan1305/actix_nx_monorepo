@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(path)=>path,
         Err(error)=>{
             service_logger::err_logger(handler_name,"main", "main.config", &error);
-            exit(1)
+            panic!("{}",error)
         }
     };
     
@@ -32,15 +32,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
             config
         },
         Err(error)=>{
-            service_logger::err_logger(handler_name, "main", "main.config_validate", error);
-            exit(1)
+            service_logger::err_logger(handler_name, "main", "main.config_validate", &error);
+            panic!("{}",error)
         }
     };
     let address = match config.apps.address.parse(){
         Ok(data)=>data,
         Err(error)=>{
-            service_logger::err_logger(&handler_name, "main", "main.config_get_address", error);
-            exit(1)
+            service_logger::err_logger(&handler_name, "main", "main.config_get_address", &error);
+            panic!("{}",error)
         }
     };
     
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(pool) => pool,
         Err(error) => {
             eprintln!("error db_pool: {}", error);
-            std::process::exit(1);
+            panic!("{}",error);
         }
     };
 
@@ -61,8 +61,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             service_logger::info_logger(handler_name, "main", "main.get_redis_pool");
             redis_pool},
         Err(err)=>{
-            service_logger::err_logger(&handler_name, "main","main.get_redis_pool", err);
-            exit(1)
+            service_logger::err_logger(&handler_name, "main","main.get_redis_pool", &err);
+            panic!("{}",err)
         }
 
     };
