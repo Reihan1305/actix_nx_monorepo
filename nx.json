@@ -12,7 +12,7 @@
       "{workspaceRoot}/.gitlab-ci.yml"
     ]
   },
-  "nxCloudId": "67a0b8d23135fd1d9a1d8d19",
+  "nxCloudId": "67d0ea695126804933b6b7f9",
   "plugins": [
     "@monodon/rust"
   ]
